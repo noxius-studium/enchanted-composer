@@ -69,6 +69,6 @@ Subscription voice uses a local Codex app-server and relies on the CLI's own aut
 
 ## Upstream credit and ownership
 
-Enchanted Composer is derived from [hermes-live-voice](https://github.com/Synero/hermes-live-voice) by Synero and [prompt-enhance](https://github.com/apoapostolov/hermes-agent-awesome-plugins/tree/main/public/prompt-enhance) by Apostol Apostolov. Both upstream projects are MIT-licensed; their preserved copyright and license notices are in [NOTICE.md](NOTICE.md).
+Enchanted Composer is **derived in concepts, flows, and behavior** from [hermes-live-voice](https://github.com/Synero/hermes-live-voice) by Synero and [prompt-enhance](https://github.com/apoapostolov/hermes-agent-awesome-plugins/tree/main/public/prompt-enhance) by Apostol Apostolov, with a **substantially rewritten implementation**. See [PROVENANCE.md](PROVENANCE.md) for the exact upstream repositories, reviewed revisions, and carried-forward ideas. Both upstream projects are MIT-licensed; their preserved copyright and license notices are in [NOTICE.md](NOTICE.md).
 
 This repository is owned and maintained by the `noxius-studium` organization and submitted to the Hermes catalog by [@Deadtrix21](https://github.com/Deadtrix21).

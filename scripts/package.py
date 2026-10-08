@@ -12,7 +12,7 @@ ROOT=Path(__file__).resolve().parents[1]
 ARCHIVE_ROOT="composer-enhancements"
 FIXED_ZIP_TIMESTAMP=(1980,1,1,0,0,0)
 REQUIRED_PATHS=(
-    Path("__init__.py"),Path("plugin.yaml"),Path("pyproject.toml"),Path("README.md"),Path("SECURITY.md"),Path("LICENSE"),Path("NOTICE.md"),
+    Path("__init__.py"),Path("plugin.yaml"),Path("pyproject.toml"),Path("README.md"),Path("SECURITY.md"),Path("LICENSE"),Path("NOTICE.md"),Path("PROVENANCE.md"),
     Path("dashboard/__init__.py"),Path("dashboard/manifest.json"),Path("dashboard/plugin_api.py"),
     Path("dashboard/src/index.js"),Path("dashboard/src/style.css"),Path("dashboard/dist/index.js"),Path("dashboard/dist/style.css"),
     *(Path("dashboard/composer_enhancements")/name for name in ("__init__.py","errors.py","contracts.py","capabilities.py","engine_resolver.py","paths.py","settings.py","identity.py","runtime_env.py","credential_relay.py","bridge_proof.py","codex_binary.py","codex_app_server.py","codex_live.py","hermes_runs.py","usage.py","voice_options.py","enhancement.py","realtime_adapter.py","bridge_adapter.py","router.py")),

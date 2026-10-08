@@ -29,6 +29,7 @@ def test_release_zip_is_deterministic_and_clean_profile_shaped(tmp_path:Path) ->
         assert all(info.date_time==(1980,1,1,0,0,0) for info in archive.infolist())
         assert 'composer-enhancements/desktop/plugin.js' in names
         assert 'composer-enhancements/dashboard/composer_enhancements/bridge_proof.py' in names
+        assert 'composer-enhancements/PROVENANCE.md' in names
         assert 'composer-enhancements/dashboard/composer_enhancements/voice_options.py' in names
         assert 'composer-enhancements/dashboard/composer_enhancements/enhancement.py' in names
         assert 'composer-enhancements/dashboard/dist/index.js' in names
