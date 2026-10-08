@@ -44,6 +44,21 @@ python scripts/package.py --output dist/enchanted-composer-0.2.0.zip
 hermes plugins validate . --json
 ```
 
+or 
+
+```bash
+python scripts/build_desktop.py
+python scripts/build_dashboard.py
+python scripts/build_desktop.py --check
+python scripts/build_dashboard.py --check
+node --test tests/desktop/*.test.mjs tests/dashboard/*.test.mjs
+python -m pytest -q
+python -m ruff check dashboard tests scripts
+node scripts/verify_desktop.mjs desktop/plugin.js
+python scripts/package.py --output dist/enchanted-composer-0.2.0.zip
+hermes plugins validate . --json
+```
+
 Install the unified archive through Hermes Plugins and enable both its backend and Desktop half. New backend routes require a normal backend lifecycle; replacing renderer JavaScript alone is not a complete upgrade. See [installation](docs/installation.md) and [migration](docs/migration.md).
 
 ## Current boundary
