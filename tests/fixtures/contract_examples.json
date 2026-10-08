@@ -1,0 +1,52 @@
+{
+  "contractVersion": "1",
+  "valid": {
+    "owner": {
+      "connectionId": "connection-7",
+      "profile": "default",
+      "runtimeSessionId": "runtime-9",
+      "storedSessionId": "stored-3"
+    },
+    "capabilities": [
+      {
+        "backend": "enchanted-realtime",
+        "installed": true,
+        "compatible": true,
+        "supported": true,
+        "ready": true,
+        "featureFlags": {"composerBridge": false}
+      },
+      {
+        "backend": "enchanted-bridge",
+        "installed": true,
+        "compatible": true,
+        "supported": true,
+        "ready": true,
+        "featureFlags": {"composerBridge": true}
+      }
+    ],
+    "engines": [
+      {"backend": "enchanted-realtime", "engine": "talk-standard", "billingLane": "talk"},
+      {"backend": "enchanted-bridge", "engine": "live-standard", "billingLane": "live"}
+    ],
+    "event": {
+      "type": "transcript",
+      "sessionId": "session-4",
+      "payload": {"text": "hello", "segments": ["hello"]}
+    },
+    "protoEvent": {
+      "type": "transcript",
+      "sessionId": "session-proto",
+      "payload": {
+        "__proto__": {"nested": {"value": "ordinary-public-data"}},
+        "text": "prototype-safe"
+      }
+    }
+  },
+  "rejections": {
+    "unknownBackend": "other-backend",
+    "unknownEventType": "providerEvent",
+    "secretPayload": {"nested": {"accessToken": "must-not-leak"}},
+    "oversizeString": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+  }
+}

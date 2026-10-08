@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - uses: astral-sh/setup-uv@v6
+      - name: Install test dependencies
+        run: uv sync --locked --extra test
+      - name: Verify generated artifacts
+        run: |
+          uv run python scripts/build_desktop.py --check
+          uv run python scripts/build_dashboard.py --check
+      - name: Test JavaScript
+        run: node --test tests/desktop/*.test.mjs tests/dashboard/*.test.mjs
+      - name: Test Python
+        run: uv run python -m pytest -q
+      - name: Lint Python
+        run: uv run python -m ruff check dashboard tests scripts
+      - name: Verify Desktop surface
+        run: node scripts/verify_desktop.mjs desktop/plugin.js
+      - name: Build deterministic release twice
+        run: |
+          uv run python scripts/package.py --output dist/enchanted-composer-0.2.0-a.zip
+          uv run python scripts/package.py --output dist/enchanted-composer-0.2.0-b.zip
+          cmp dist/enchanted-composer-0.2.0-a.zip dist/enchanted-composer-0.2.0-b.zip

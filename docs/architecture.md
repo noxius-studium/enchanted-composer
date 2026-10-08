@@ -1,0 +1,28 @@
+# Architecture
+
+Enchanted Composer has three isolated planes. The desktop owns the temporary per-chat voice transcript, media lease, versioned multi-library prompt model, and compact approved Composer actions. Its focused prompt popup can switch libraries and active prompts, create libraries and prompts, transfer prompts without changing their IDs, and insert instructions; it does not replace the routed settings workspace. Live Voice is permanently bound to the active Hermes chat captured at start. Tool work continues that chat directly without touching its Composer or creating another session. The backend owns provider credentials, bounded profile-identity loading, Codex process/session mechanics, chat-bound Hermes runs, secret-free capability receipts, and usage.
+
+`OwnerRouter.capture()` snapshots the exact four-field focused binding before awaiting `host.profileRoutes()`. It resolves its private route map by connection/profile and, if an adapter exposes session fields, prefers the exact runtime/stored pair. It never re-reads focus after capture. Duplicate descriptors with no deterministic distinction fail closed. `DelegationBridge` permits one active and one replaceable queued request; it expires queued work after ten minutes, starts `/v1/runs` with the captured `storedSessionId`, carries bounded ephemeral voice context as run instructions, polls the immutable run ID, and returns the completed output to voice. The run's input is the exact spoken request, so Hermes writes the user row, tool activity, and assistant result into the already-bound chat. It never calls `prompt.submit`, never writes the Composer, and never creates a run-ID chat.
+
+Prompt enhancement asks the captured owner route for `model.options` with `{explicit_only:true}`. The returned provider/model/current selection is normalized for the per-call override picker; voice capabilities are not treated as the Hermes model catalog and no catalog fallback is invented.
+
+Enchanted Realtime is the primary explicit backend. The browser builds a WebRTC peer with leased microphone tracks and an `oai-events` channel, posts SDP to the versioned backend, applies the answer, and plays remote media through `AudioDeviceController`. Subscription billing starts a correlated Codex JSON-RPC app-server. Before negotiation the backend reads the captured profile's `/v1/skills` and enabled `/v1/toolsets` catalogue. Explicit API billing posts SDP only to a configured HTTPS offer URL. Session, command, result receipt, close, run-start, run-status, and run-stop routes require the captured owner.
+
+The subscription lane starts the official Codex CLI's app-server and lets that client own authentication. Enchanted Composer does not inspect or mutate Codex OAuth files and does not call private subscription-usage endpoints. Local voice sessions are reported only at real teardown with observed duration/audio duration and stored in the hashed connection+profile owner scope.
+
+Composer Bridge is an optional WebSocket integration requiring `composerBridge:true`, `composer-bridge-v1`, `taskAuthority:composer`, an advertised provider, and `webm-opus-v1` framing. Stock gateways remain incompatible. Neither adapter has Hermes submission authority.
+
+
+## Enchanted Composer 0.2 lifecycle and persistence
+
+- The public display name/route changed while the technical package and state namespace remain compatible.
+- `OwnerRouter.capture({allowDraft:true})` creates only an explicit local draft scope for profile-level discovery/enhancement/settings. Draft scopes never reach the run API. `ensureSession()` instead uses public owner-routed `session.create`, `session.title`, and `host.openSession`, checks focus at async boundaries, and obtains real runtime/stored identities before microphone acquisition.
+- `PromptEnhancer` keeps bounded per-chat revision stacks rather than a single DOM-node-bound pair. It validates actual editor contents before and after every history operation. A pending enhancement cannot replace text changed in the meantime.
+- `ComposerSettingsStore` owns debounced, serialized writes per connection/profile. It persists pending edits locally before issuing the PUT, reads the same backend setting back before declaring success, and retains failures for retry. Backend settings writes use a same-directory temporary file and atomic replacement.
+- Voice adapters emit explicit fatal/nonfatal events. Message wording is never used as a fatality classifier. A disconnected peer has ten seconds to recover on the existing transport; a fatal failure requires explicit retry and keeps a bounded diagnostic record outside the ephemeral transcript. Retry preserves the original owner/provider selection and does not replay delegated tasks.
+- Realtime events arriving before subscription are queued in a bounded buffer. Stop cancels active and late-starting work, removes peer handlers and timers, and releases media locally even when remote cleanup fails. New assistant output resumes an interrupted remote audio element.
+- Optional local process-health polling is advertised in the start receipt, so older backends are not probed for a missing endpoint.
+
+Shared persistent voice history and a mobile voice surface are deliberately deferred. The engine continues to delegate tool requests to the existing Hermes chat.
+
+Draft access uses only `host.composer.getDraft/setDraft/insertText`. These APIs are Promise-returning, addressed to the stored session or explicit `new` draft, and writes must acknowledge success. There is no application-DOM query, execCommand fallback, or private core event injection. Older hosts without this public API fail with an explicit update requirement.

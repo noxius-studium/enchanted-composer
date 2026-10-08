@@ -1,0 +1,14 @@
+{
+  "name": "composer-enhancements",
+  "label": "Enchanted Composer",
+  "description": "Voice provider, authentication, and usage controls for Enchanted Composer.",
+  "version": "0.2.0",
+  "tab": {
+    "path": "/enchanted-composer",
+    "position": "end"
+  },
+  "icon": "Sparkles",
+  "entry": "dist/index.js",
+  "css": "dist/style.css",
+  "api": "plugin_api.py"
+}
