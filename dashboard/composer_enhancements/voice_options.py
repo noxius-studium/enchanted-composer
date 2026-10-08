@@ -6,13 +6,13 @@ credentials never cross this boundary.
 """
 from __future__ import annotations
 
-import os
 from collections.abc import Mapping
 from urllib.parse import urlparse
 
 from .codex_binary import discover_codex_binary
 from .credential_relay import billing_receipt
 from .errors import ContractError, PublicErrorCode
+from .runtime_env import read as read_runtime_env
 
 CODEX_MODELS = ("gpt-live-1-codex",)
 CODEX_VOICES = (
@@ -74,7 +74,7 @@ _BRIDGE_PROVIDERS = frozenset({"openai", "gemini", "huggingface"})
 
 
 def _offer_endpoint_ready() -> bool:
-    value = os.environ.get("COMPOSER_REALTIME_OFFER_URL", "").strip()
+    value = read_runtime_env("COMPOSER_REALTIME_OFFER_URL").strip()
     try:
         parsed = urlparse(value)
     except ValueError:

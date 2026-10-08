@@ -90,4 +90,4 @@ def save(path: Path, settings: Settings) -> Settings:
 
 def import_settings(value: object, *, dry_run: bool) -> dict[str, object]:
     settings = Settings.from_dict(value)
-    return {"ok": True, "dryRun": dry_run, "settings": settings.public_dict(), "migration": "Credentials and other plugin storage are never imported; disable talk-desktop and prompt-enhance after verifying Enchanted Composer."}
+    return {"ok": True, "dryRun": dry_run, "settings": settings.public_dict(), "migration": "Credentials and other plugin storage are never imported; disable hermes-live-voice and prompt-enhance after verifying Enchanted Composer."}

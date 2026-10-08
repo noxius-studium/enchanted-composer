@@ -15,6 +15,7 @@ def test_voice_usage_uses_hashed_connection_and_profile_scope(monkeypatch, tmp_p
     path_b = owner_state_dir(OWNER_B) / "usage.json"
     assert path_a != path_b
     assert "same" not in str(path_a)
+    assert path_a.is_relative_to(tmp_path / "plugin-data" / "enchanted-composer")
     assert record(path_a, 120_000, 60_000) == {"ok": True}
     assert summary(path_a)["today"]["sessions"] == 1
     assert summary(path_b)["today"]["sessions"] == 0

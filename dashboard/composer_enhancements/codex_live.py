@@ -1,7 +1,6 @@
 """Owner-fenced WebRTC negotiation and command dispatch."""
 from __future__ import annotations
 
-import os
 import secrets
 import threading
 import urllib.parse
@@ -14,7 +13,27 @@ from .errors import ContractError, PublicErrorCode
 from .hermes_runs import capability_context
 from .identity import profile_identity
 from .paths import hermes_home
+from .runtime_env import read as read_runtime_env
 from .voice_options import validate_voice_selection
+
+
+class _RefuseRedirects(urllib.request.HTTPRedirectHandler):
+    """Keep Bearer credentials on the explicitly configured HTTPS origin."""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):  # type: ignore[no-untyped-def]
+        return None
+
+
+def _post_offer(url: str, offer: str, key: str) -> str:
+    request = urllib.request.Request(
+        url,
+        offer.encode(),
+        {"Authorization": f"Bearer {key}", "Content-Type": "application/sdp"},
+        method="POST",
+    )
+    opener = urllib.request.build_opener(_RefuseRedirects())
+    with opener.open(request, timeout=30) as response:
+        return response.read(200_001).decode()
 
 
 @dataclass(slots=True)
@@ -120,15 +139,21 @@ class CodexLiveRegistry:
                 app.close()
                 raise
         elif billing == "api" and engine.startswith("gpt-realtime"):
-            key = os.environ.get("COMPOSER_OPENAI_API_KEY", os.environ.get("OPENAI_API_KEY", ""))
-            endpoint = os.environ.get("COMPOSER_REALTIME_OFFER_URL", "")
+            key = read_runtime_env("COMPOSER_OPENAI_API_KEY").strip() or read_runtime_env("OPENAI_API_KEY").strip()
+            endpoint = read_runtime_env("COMPOSER_REALTIME_OFFER_URL").strip()
             parsed = urllib.parse.urlparse(endpoint)
-            if not key.strip() or parsed.scheme != "https" or not parsed.netloc:
+            if (
+                not key
+                or len(endpoint) > 2048
+                or parsed.scheme != "https"
+                or not parsed.netloc
+                or parsed.username is not None
+                or parsed.password is not None
+                or parsed.fragment
+            ):
                 raise ContractError(PublicErrorCode.BACKEND_NOT_READY)
             url = endpoint + ("&" if "?" in endpoint else "?") + urllib.parse.urlencode({"model": engine})
-            req = urllib.request.Request(url, offer.encode(), {"Authorization": f"Bearer {key}", "Content-Type": "application/sdp"}, method="POST")
-            with urllib.request.urlopen(req, timeout=30) as response:
-                answer = response.read(200_001).decode()
+            answer = _post_offer(url, offer, key)
             if not answer or len(answer) > 200_000:
                 raise RuntimeError("API realtime answer was invalid.")
         else:

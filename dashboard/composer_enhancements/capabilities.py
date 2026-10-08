@@ -1,7 +1,6 @@
 """Normalized backend capability snapshots with independent readiness axes."""
 from __future__ import annotations
 
-import os
 from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Final
@@ -11,6 +10,7 @@ from .codex_binary import discover_codex_binary
 from .contracts import BackendId
 from .credential_relay import billing_receipt
 from .errors import ContractError, PublicErrorCode
+from .runtime_env import read as read_runtime_env
 from .settings import Settings
 
 
@@ -51,7 +51,7 @@ def known_backend_capabilities(settings: Settings | None = None, bridge_capabili
     selected = settings or Settings()
     receipt = billing_receipt(selected.billing_lane)
     talk_installed = bool(discover_codex_binary()) if selected.billing_lane == "subscription" else True
-    configured_api = bool(os.environ.get("COMPOSER_REALTIME_OFFER_URL", "").startswith("https://"))
+    configured_api = bool(read_runtime_env("COMPOSER_REALTIME_OFFER_URL").startswith("https://"))
     talk_ready = talk_installed and receipt.ready and (selected.billing_lane == "subscription" or (selected.billing_lane == "api" and configured_api))
     talk = BackendCapabilities(BackendId.ENCHANTED_REALTIME, talk_installed, selected.billing_lane in {"subscription", "api"}, True, talk_ready, _UNIMPLEMENTED_FLAGS)
     live = preflight(selected.bridge_endpoint, bridge_capabilities, selected.provider)

@@ -5,12 +5,12 @@ import base64
 import hashlib
 import hmac
 import json
-import os
 import time
 from urllib.parse import urlparse
 
 from .contracts import OwnerBinding
 from .errors import ContractError, PublicErrorCode
+from .runtime_env import read as read_runtime_env
 
 
 def _origin(endpoint: object) -> str:
@@ -25,7 +25,7 @@ def _origin(endpoint: object) -> str:
 
 def mint(owner_value: object, endpoint: object, provider: object, session_id: object, nonce: object, *, clock=time.time) -> dict[str, object]:
     owner=OwnerBinding.from_dict(owner_value)
-    secret=os.environ.get("COMPOSER_BRIDGE_SHARED_SECRET", "").strip()
+    secret=read_runtime_env("COMPOSER_BRIDGE_SHARED_SECRET").strip()
     if not secret:
         raise ContractError(PublicErrorCode.BACKEND_NOT_READY)
     if not isinstance(provider,str) or not 0<len(provider)<=128 or not isinstance(session_id,str) or not 0<len(session_id)<=128 or not isinstance(nonce,str) or not 0<len(nonce)<=256:

@@ -4,7 +4,7 @@ Renderer storage contains only prompt library and non-secret settings. It never 
 
 Codex OAuth remains owned by the official Codex CLI. Enchanted Composer never reads, refreshes, backs up, logs out, or writes the CLI's OAuth files. Subscription voice starts `codex app-server`, which uses its own authentication internally and reports only bounded protocol results. Users authenticate separately with `codex login`.
 
-The plugin has no telemetry and no self-update path. It stores bounded local voice activity in a hashed connection/profile directory and reads only the exact captured profile's bounded `SOUL.md` identity. API keys and bridge secrets are read from backend environment/secret scope and never sent to the renderer.
+The plugin has no telemetry and no self-update path. It stores bounded local voice activity under a hashed connection/profile directory in `HERMES_HOME/plugin-data/enchanted-composer/` and reads only the exact captured profile's bounded `SOUL.md` identity. API keys and bridge secrets are read through the active Hermes profile secret scope and never sent to the renderer.
 
 Voice transcript is plugin-owned temporary state and clears when a call begins or ends. Ordinary transcript text never enters the draft or Hermes chat. Only filtered explicit delegation may become a focused-chat turn, bound to a captured owner route. The owner cannot silently change if the user switches focus.
 

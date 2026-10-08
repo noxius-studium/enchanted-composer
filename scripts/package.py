@@ -15,7 +15,7 @@ REQUIRED_PATHS=(
     Path("__init__.py"),Path("plugin.yaml"),Path("pyproject.toml"),Path("README.md"),Path("SECURITY.md"),Path("LICENSE"),Path("NOTICE.md"),
     Path("dashboard/__init__.py"),Path("dashboard/manifest.json"),Path("dashboard/plugin_api.py"),
     Path("dashboard/src/index.js"),Path("dashboard/src/style.css"),Path("dashboard/dist/index.js"),Path("dashboard/dist/style.css"),
-    *(Path("dashboard/composer_enhancements")/name for name in ("__init__.py","errors.py","contracts.py","capabilities.py","engine_resolver.py","paths.py","settings.py","identity.py","credential_relay.py","bridge_proof.py","codex_binary.py","codex_app_server.py","codex_live.py","hermes_runs.py","usage.py","voice_options.py","enhancement.py","realtime_adapter.py","bridge_adapter.py","router.py")),
+    *(Path("dashboard/composer_enhancements")/name for name in ("__init__.py","errors.py","contracts.py","capabilities.py","engine_resolver.py","paths.py","settings.py","identity.py","runtime_env.py","credential_relay.py","bridge_proof.py","codex_binary.py","codex_app_server.py","codex_live.py","hermes_runs.py","usage.py","voice_options.py","enhancement.py","realtime_adapter.py","bridge_adapter.py","router.py")),
     Path("desktop/plugin.js"),*(Path("desktop/src")/part for part in PARTS),
     Path("scripts/build_desktop.py"),Path("scripts/build_dashboard.py"),Path("scripts/package.py"),Path("scripts/verify_desktop.mjs"),
     Path("docs/architecture.md"),Path("docs/installation.md"),Path("docs/migration.md"),Path("docs/privacy-and-security.md"),Path("docs/limitations.md"),
@@ -31,7 +31,7 @@ def release_files(root:Path)->list[Path]:
     missing=[path for path in REQUIRED_PATHS if not (root/path).is_file()]
     if missing:raise FileNotFoundError("Required release file(s) missing: "+", ".join(path.as_posix() for path in missing))
     for name in ("index.js","style.css"):
-        if (root/"dashboard"/"src"/name).read_bytes() != (root/"dashboard"/"dist"/name).read_bytes():
+        if (root/"dashboard"/"src"/name).read_text(encoding="utf-8") != (root/"dashboard"/"dist"/name).read_text(encoding="utf-8"):
             raise RuntimeError(f"Dashboard bundle is stale: dashboard/dist/{name}")
     return sorted(REQUIRED_PATHS,key=lambda path:path.as_posix())
 def write_archive(root:Path,output:Path)->Path:

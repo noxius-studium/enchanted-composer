@@ -11,6 +11,6 @@ The product has a new name, not a destructive storage reset. The technical plugi
 
 Existing prompt IDs and library schema v1/v2/v3 migration are preserved. Incomplete editor drafts are stored separately and are not applied until name and instructions are valid. JSON import remains an explicit preview/confirm operation with an in-page rollback option.
 
-Legacy renderer voice defaults are adopted once, only for the first connection/profile with no backend settings. Existing backend settings win. New settings and pending retries use a connection/profile key; voice transcripts and audio are never placed in plugin storage.
+Legacy renderer voice defaults are adopted once, only for the first connection/profile with no backend settings. Existing backend settings win. Backend settings and local usage now live under `HERMES_HOME/plugin-data/enchanted-composer/`; the first access copies recognized `settings.json` and `usage.json` files from the former `HERMES_HOME/composer-enhancements/` owner scope when needed. New settings and pending retries use a connection/profile key; voice transcripts and audio are never placed in plugin storage.
 
 No credential migration occurs: Codex keeps its normal login, and API keys stay server-side. Disable any separately installed predecessor voice/enhancement plugins manually after verifying this upgrade; this package does not change their enablement.

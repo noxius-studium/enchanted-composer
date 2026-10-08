@@ -6,8 +6,8 @@ from pathlib import Path
 import pytest
 
 from dashboard.composer_enhancements import hermes_runs
-from dashboard.composer_enhancements.codex_app_server import CodexAppServer
-from dashboard.composer_enhancements.codex_live import CodexLiveRegistry
+from dashboard.composer_enhancements.codex_app_server import CodexAppServer, _child_environment
+from dashboard.composer_enhancements.codex_live import CodexLiveRegistry, _post_offer
 from dashboard.composer_enhancements.errors import ContractError
 
 FIXTURE = Path(__file__).parent / "fixtures" / "fake_codex_app_server.py"
@@ -41,6 +41,47 @@ def test_explicit_api_lane_never_uses_subscription(monkeypatch: pytest.MonkeyPat
     registry.app_factory = lambda: (_ for _ in ()).throw(AssertionError("subscription fallback"))
     with pytest.raises(ContractError):
         registry.offer({"owner": OWNER, "generation": "g", "billingLane": "api", "provider": "openai", "engine": "gpt-realtime-2.1", "voice": "cedar", "language": "en", "offer": "sdp"})
+
+
+def test_codex_child_environment_is_minimal_and_excludes_provider_keys(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("PATH", "bin")
+    monkeypatch.setenv("HOME", "home")
+    monkeypatch.setenv("CODEX_HOME", "codex-home")
+    monkeypatch.setenv("OPENAI_API_KEY", "must-not-leak")
+    monkeypatch.setenv("UNRELATED_SECRET", "must-not-leak")
+    environment = _child_environment()
+    assert environment["PATH"] == "bin"
+    assert environment["HOME"] == "home"
+    assert environment["CODEX_HOME"] == "codex-home"
+    assert "OPENAI_API_KEY" not in environment
+    assert "UNRELATED_SECRET" not in environment
+
+
+def test_api_offer_uses_no_redirect_handler_and_keeps_bearer_on_one_request(monkeypatch: pytest.MonkeyPatch) -> None:
+    captured: dict[str, object] = {}
+
+    class Response:
+        def __enter__(self): return self
+        def __exit__(self, *_args): return None
+        def read(self, limit: int) -> bytes:
+            assert limit == 200_001
+            return b"answer-sdp"
+
+    class Opener:
+        def open(self, request, timeout: int):
+            captured["request"] = request
+            assert timeout == 30
+            return Response()
+
+    def build_opener(handler):
+        captured["handler"] = handler
+        return Opener()
+
+    monkeypatch.setattr("dashboard.composer_enhancements.codex_live.urllib.request.build_opener", build_opener)
+    assert _post_offer("https://api.example/realtime?model=gpt-realtime-2.1", "offer-sdp", "secret") == "answer-sdp"
+    request = captured["request"]
+    assert request.get_header("Authorization") == "Bearer secret"
+    assert captured["handler"].redirect_request(request, None, 307, "redirect", {}, "https://evil.example") is None
 
 
 def test_capability_catalog_comes_from_api_server_skills_and_enabled_toolsets(monkeypatch: pytest.MonkeyPatch) -> None:

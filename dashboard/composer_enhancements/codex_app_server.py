@@ -10,6 +10,31 @@ from collections import deque
 from typing import Any
 
 from .codex_binary import discover_codex_binary
+from .runtime_env import read as read_runtime_env
+
+_CHILD_ENV_KEYS = (
+    "PATH",
+    "HOME",
+    "USERPROFILE",
+    "SYSTEMROOT",
+    "WINDIR",
+    "PATHEXT",
+    "COMSPEC",
+    "TEMP",
+    "TMP",
+    "LANG",
+    "LC_ALL",
+    "LC_CTYPE",
+)
+
+
+def _child_environment() -> dict[str, str]:
+    """Return only OS launch essentials plus Codex's explicit home."""
+    env = {key: value for key in _CHILD_ENV_KEYS if (value := os.environ.get(key))}
+    codex_home = read_runtime_env("CODEX_HOME").strip()
+    if codex_home:
+        env["CODEX_HOME"] = codex_home
+    return env
 
 
 class CodexRpcError(RuntimeError):
@@ -42,9 +67,7 @@ class CodexAppServer:
         binary = discover_codex_binary()
         if not self.command and not binary:
             raise RuntimeError("Codex CLI is not available.")
-        env = os.environ.copy()
-        env.pop("OPENAI_API_KEY", None)
-        env.pop("CODEX_API_KEY", None)
+        env = _child_environment()
         command = self.command or [binary, "app-server", "--listen", "stdio://", "--enable", "realtime_conversation", "-c", "model_provider=openai", "-c", "suppress_unstable_features_warning=true"]
         self.process = subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, bufsize=1, env=env)
         process = self.process

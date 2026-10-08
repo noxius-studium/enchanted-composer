@@ -33,8 +33,8 @@ function ComposerActions({controller}) {
     let live=true,sequence=0
     const refresh=async()=>{const seq=++sequence;try{const {owner}=await controller.enhancer.capture(),next=await controller.enhancer.status(owner);if(live&&seq===sequence)setHistory(next)}catch{if(live&&seq===sequence)setHistory({canUndo:false,canRedo:false,busy:false})}}
     const dispose=controller.enhancer.subscribe(refresh),unsubscribers=['focusedSessionId','focusedStoredSessionId','focusedSessionOwner'].map(name=>host.state?.[name]?.subscribe?.(refresh)).filter(Boolean)
-    document.addEventListener('input',refresh,true);document.addEventListener('focusin',refresh,true);void refresh()
-    return()=>{live=false;++sequence;dispose();unsubscribers.forEach(fn=>fn());document.removeEventListener('input',refresh,true);document.removeEventListener('focusin',refresh,true)}
+    void refresh()
+    return()=>{live=false;++sequence;dispose();unsubscribers.forEach(fn=>fn())}
   },[controller])
   const enhance=async()=>{if(enhancing)return;setEnhancing(true);try{await enhanceDraft(controller)}catch(error){host.notify({kind:'error',message:publicError(error)})}finally{setEnhancing(false)}}
   const move=async fn=>{try{if(!await fn(controller))host.notify({kind:'info',message:'This draft changed after enhancement. Your edits have been preserved.'})}catch(error){host.notify({kind:'error',message:publicError(error)})}}

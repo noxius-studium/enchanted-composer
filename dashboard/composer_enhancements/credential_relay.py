@@ -1,10 +1,10 @@
 """Server-side readiness receipts without reading another client's credential store."""
 from __future__ import annotations
 
-import os
 from dataclasses import dataclass
 
 from .codex_binary import discover_codex_binary
+from .runtime_env import read as read_runtime_env
 
 
 @dataclass(frozen=True, slots=True)
@@ -26,8 +26,9 @@ def billing_receipt(billing_lane: str, owner: object | None = None) -> Credentia
         return CredentialReceipt("subscription", ready, detail)
     if billing_lane == "api":
         for name in ("COMPOSER_OPENAI_API_KEY", "OPENAI_API_KEY"):
-            if name in os.environ:
-                return CredentialReceipt("api", bool(os.environ[name].strip()), f"{name} configured" if os.environ[name].strip() else f"{name} is blank")
+            value = read_runtime_env(name)
+            if value:
+                return CredentialReceipt("api", True, f"{name} configured")
         return CredentialReceipt("api", False, "API key required")
     if billing_lane == "local":
         return CredentialReceipt("local", True, "Local bridge owns provider credentials")
