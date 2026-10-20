@@ -1,6 +1,6 @@
 # Installation
 
-1. Build `dist/enchanted-composer-0.2.1.zip` with `python scripts/package.py`.
+1. Build `dist/enchanted-composer-0.2.2.zip` with `python scripts/package.py`.
 2. Install the archive as a Hermes plugin and enable the backend plugin in Hermes configuration.
 3. In Hermes Desktop, open **Settings → Plugins** and enable Enchanted Composer (the desktop half is opt-in).
 4. For subscription voice, install the official Codex CLI and run `codex login` outside Hermes. Enchanted Composer intentionally does not read or manage Codex OAuth files.

@@ -2,7 +2,7 @@
 
 __all__ = ["__version__", "register"]
 
-__version__ = "0.2.1"
+__version__ = "0.2.2"
 
 
 def register(_ctx: object) -> None:
