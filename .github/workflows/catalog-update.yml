@@ -68,6 +68,7 @@ jobs:
         run: |
           set -euo pipefail
           BRANCH="catalog/enchanted-composer-v${VERSION}"
+          gh api --method POST repos/Deadtrix21/hermes-agent/merge-upstream -f branch=main >/dev/null
           UPSTREAM_SHA="$(gh api repos/NousResearch/hermes-agent/git/ref/heads/main --jq '.object.sha')"
           REF_ENDPOINT="repos/Deadtrix21/hermes-agent/git/refs/heads/${BRANCH}"
           if gh api "${REF_ENDPOINT}" >/dev/null 2>&1; then
