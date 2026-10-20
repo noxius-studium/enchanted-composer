@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from scripts.update_hermes_catalog_entry import update_catalog_entry
+from scripts.update_hermes_catalog_entry import read_catalog_identity, update_catalog_entry
 
 ENTRY = """name: enchanted-composer
 repo: https://github.com/noxius-studium/enchanted-composer
@@ -29,6 +29,13 @@ def test_update_catalog_entry_repins_every_sha_and_version_reference(tmp_path: P
     assert text.count(new_sha) == 3
     assert "0.2.0" not in text
     assert text.count("0.2.3") == 2
+
+
+def test_read_catalog_identity_returns_the_pinned_version_and_full_sha(tmp_path: Path) -> None:
+    entry = tmp_path / "enchanted-composer.yaml"
+    entry.write_text(ENTRY, encoding="utf-8")
+
+    assert read_catalog_identity(entry) == ("0.2.0", "1" * 40)
 
 
 @pytest.mark.parametrize(

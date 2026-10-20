@@ -49,6 +49,8 @@ def test_catalog_update_is_manual_and_keeps_nous_review_as_the_gate() -> None:
     assert "release_tag:" in text
     assert "HERMES_CATALOG_TOKEN" in text
     assert "scripts/update_hermes_catalog_entry.py" in text
+    assert "--show-current" in text
+    assert "mapfile -t CATALOG_IDENTITY" in text
     assert "NousResearch/hermes-agent" in text
     assert "git remote set-url upstream" in text
     assert "|| git remote add upstream" in text
