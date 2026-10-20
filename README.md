@@ -120,9 +120,19 @@ The deterministic package is written to `dist/enchanted-composer-<version>.zip` 
 
 ## Verifiable releases
 
-The **Release package** workflow can be run manually or by pushing a version tag such as `v0.2.1`.
+The current manifest version is **0.2.1**. Release automation keeps this value synchronized across every package and documentation source.
 
-Every workflow build produces:
+The **CI** and **Release package** workflows run automatically whenever a pull request is merged into `main`. CI verifies the merged source. The release workflow then:
+
+1. re-runs the complete verification suite,
+2. uses an explicit new manifest version when the merged PR provides one, or increments the patch version automatically,
+3. commits the synchronized version update to `main` when needed,
+4. creates the matching `v<version>` tag, and
+5. publishes the verified GitHub Release assets.
+
+The release workflow can also be started manually for the latest `main` commit. Serialized concurrency prevents two nearby merges from racing over a version or tag.
+
+Every release produces:
 
 ```text
 enchanted-composer-<version>-<12-character-commit>.zip
@@ -130,7 +140,7 @@ SHA256SUMS
 RELEASE-METADATA.json
 ```
 
-`RELEASE-METADATA.json` records the plugin version, full commit SHA, short commit SHA, archive name, and SHA-256 checksum. The workflow verifies `SHA256SUMS` before uploading anything. A version tag must match `plugin.yaml`; tagged builds publish the same verified files as GitHub Release assets.
+`RELEASE-METADATA.json` records the plugin version, full commit SHA, short commit SHA, archive name, and SHA-256 checksum. The workflow verifies `SHA256SUMS` before uploading anything, confirms the tag points at the exact verified commit, and publishes the same files as GitHub Release assets.
 
 ## Boundaries that stay visible
 

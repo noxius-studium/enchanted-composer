@@ -35,7 +35,10 @@ jobs:
       - name: Verify Desktop surface
         run: node scripts/verify_desktop.mjs desktop/plugin.js
       - name: Build deterministic release twice
+        shell: bash
         run: |
-          uv run python scripts/package.py --output dist/enchanted-composer-0.2.0-a.zip
-          uv run python scripts/package.py --output dist/enchanted-composer-0.2.0-b.zip
-          cmp dist/enchanted-composer-0.2.0-a.zip dist/enchanted-composer-0.2.0-b.zip
+          set -euo pipefail
+          VERSION="$(python -c 'import pathlib; print(next(line.split(":",1)[1].strip().split()[0] for line in pathlib.Path("plugin.yaml").read_text(encoding="utf-8").splitlines() if line.startswith("version:")))')"
+          uv run python scripts/package.py --output "dist/enchanted-composer-${VERSION}-a.zip"
+          uv run python scripts/package.py --output "dist/enchanted-composer-${VERSION}-b.zip"
+          cmp "dist/enchanted-composer-${VERSION}-a.zip" "dist/enchanted-composer-${VERSION}-b.zip"
