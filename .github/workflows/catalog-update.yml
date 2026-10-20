@@ -70,7 +70,7 @@ jobs:
           BRANCH="catalog/enchanted-composer-v${VERSION}"
           gh repo clone Deadtrix21/hermes-agent catalog
           cd catalog
-          git remote add upstream https://github.com/NousResearch/hermes-agent.git
+          git remote set-url upstream https://github.com/NousResearch/hermes-agent.git 2>/dev/null || git remote add upstream https://github.com/NousResearch/hermes-agent.git
           git fetch upstream main
           git checkout -B "${BRANCH}" upstream/main
 
