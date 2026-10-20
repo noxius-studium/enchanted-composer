@@ -75,8 +75,9 @@ jobs:
           git checkout -B "${BRANCH}" upstream/main
 
           ENTRY="plugin-catalog/enchanted-composer.yaml"
-          OLD_SHA="$(python -c 'import pathlib,re; text=pathlib.Path("plugin-catalog/enchanted-composer.yaml").read_text(); print(re.search(r"^sha:\\s*([0-9a-f]{40})\\s*$",text,re.M).group(1))')"
-          OLD_VERSION="$(python -c 'import pathlib,re; text=pathlib.Path("plugin-catalog/enchanted-composer.yaml").read_text(); print(re.search(r"^version:\\s*\"([^\"]+)\"\\s*$",text,re.M).group(1))')"
+          mapfile -t CATALOG_IDENTITY < <(python "${GITHUB_WORKSPACE}/scripts/update_hermes_catalog_entry.py" "${ENTRY}" --show-current)
+          OLD_VERSION="${CATALOG_IDENTITY[0]}"
+          OLD_SHA="${CATALOG_IDENTITY[1]}"
           python "${GITHUB_WORKSPACE}/scripts/update_hermes_catalog_entry.py" "${ENTRY}" --version "${VERSION}" --sha "${RELEASE_SHA}"
 
           git config user.name "Deadtrix21"
