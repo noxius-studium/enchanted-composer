@@ -49,6 +49,14 @@ test('composer bar settings let each icon be shown or hidden independently',()=>
   assert.ok(source.includes("type:'checkbox'"))
 })
 
+test('composer bar settings include a live icon preview and compact themed checkboxes',()=>{
+  assert.ok(source.includes('function ComposerBarPreview'))
+  assert.ok(source.includes("'aria-label':'Composer bar preview'"))
+  assert.ok(source.includes('ec-toggle-input'))
+  assert.ok(source.includes('ec-toggle-box'))
+  assert.ok(source.includes('Live preview'))
+})
+
 test('composer control visibility is bounded, persistent, and live',async()=>{
   const r=runtime(),mem=storage({'composer-control-visibility':{voice:false,unknown:false}}),controller=r.createController({storage:mem,rest:async()=>({ok:true})})
   assert.equal(Object.keys(controller.composerControls).length,r.COMPOSER_CONTROL_DEFINITIONS.length)
