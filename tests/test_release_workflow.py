@@ -52,6 +52,7 @@ def test_catalog_update_is_manual_and_keeps_nous_review_as_the_gate() -> None:
     assert "--show-current" in text
     assert "mapfile -t CATALOG_IDENTITY" in text
     assert "NousResearch/hermes-agent" in text
+    assert "repos/Deadtrix21/hermes-agent/merge-upstream" in text
     assert "repos/Deadtrix21/hermes-agent/git/refs" in text
     assert "repos/Deadtrix21/hermes-agent/contents/plugin-catalog/enchanted-composer.yaml" in text
     assert "gh repo clone" not in text
