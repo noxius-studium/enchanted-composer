@@ -10,10 +10,10 @@ ENTRY = ROOT / "desktop" / "plugin.js"
 SOURCE_DIR = ROOT / "desktop" / "src"
 PARTS = (
     "00-runtime.js", "05-contracts.js", "10-owner-router.js", "20-live-transcript-buffer.js",
-    "30-delegation-bridge.js", "40-prompt-model.js", "50-composer-draft-adapter.js",
-    "60-prompt-enhancer.js", "70-audio-device-controller.js", "72-voice-backend-contract.js",
-    "74-enchanted-realtime-adapter.js", "76-composer-bridge-adapter.js", "80-live-voice-session-controller.js",
-    "85-settings-store.js", "90-settings-ui.js", "95-composer-actions.js", "99-register.js",
+    "30-delegation-bridge.js", "40-prompt-model.js", "42-prompt-action-index.js", "45-draft-shelf.js", "50-composer-draft-adapter.js",
+    "55-enhancement-review.js", "60-prompt-enhancer.js", "70-audio-device-controller.js", "72-voice-backend-contract.js",
+    "74-enchanted-realtime-adapter.js", "76-composer-bridge-adapter.js", "78-speech-engine-catalog.js", "80-live-voice-session-controller.js",
+    "82-voice-interaction-mode.js", "85-settings-store.js", "90-settings-ui.js", "95-composer-actions.js", "99-register.js",
 )
 def source_text(source_dir: Path = SOURCE_DIR) -> str:
     discovered = tuple(path.name for path in sorted(source_dir.glob("*.js")))

@@ -67,18 +67,53 @@ test('failed autosave keeps pending values and retries without needing voice cre
   await assert.rejects(f.store.flush(owner),/offline/);assert.equal(f.store.record(owner).status,'error');assert.equal(f.store.record(owner).value.inputDeviceId,'usb')
   assert.ok(f.mem.map.has(`pending-settings:${f.store.key(owner)}`));f.fail=false;await f.store.flush(owner);assert.equal(f.store.record(owner).status,'saved');await f.store.dispose()
 })
+test('legacy renderer Codex cedar default migrates before the first backend save',async()=>{
+  const r=runtime(),legacy={...r.DEFAULT_SETTINGS,voice:'cedar'},mem=storage({settings:legacy}),puts=[],saved=r.settingsWire(r.DEFAULT_SETTINGS)
+  const ctx={storage:mem,rest:async(path,options)=>{
+    if(path==='/v1/settings/read')return {ok:true,exists:false,settings:{...saved}}
+    if(path==='/v1/settings'){
+      puts.push(options.body.settings)
+      if(options.body.settings.voice!=='cove')throw new Error('invalid_contract')
+      Object.assign(saved,options.body.settings);return {ok:true,settings:{...saved}}
+    }
+    throw new Error(path)
+  }}
+  const store=new r.ComposerSettingsStore(ctx,{delay:60000}),record=await store.load(owner)
+  assert.equal(record.value.voice,'cove');await store.flush(owner)
+  assert.equal(puts.length,1);assert.equal(puts[0].voice,'cove');assert.equal(store.record(owner).status,'saved');await store.dispose()
+})
+test('owner cached settings win over an obsolete global backend migration',async()=>{
+  const r=runtime(),key=JSON.stringify([owner.connectionId,owner.profile]),legacy={...r.DEFAULT_SETTINGS,backend:'obsolete-voice-backend',voice:'juniper'},cached={...r.DEFAULT_SETTINGS,voice:'sol'},mem=storage({settings:legacy,[`settings:${key}`]:cached}),puts=[],saved=r.settingsWire(r.DEFAULT_SETTINGS)
+  const ctx={storage:mem,rest:async(path,options)=>{
+    if(path==='/v1/settings/read')return {ok:true,exists:false,settings:{...saved}}
+    if(path==='/v1/settings'){
+      puts.push(options.body.settings)
+      if(options.body.settings.backend!=='enchanted-realtime')throw new Error('invalid_contract')
+      Object.assign(saved,options.body.settings);return {ok:true,settings:{...saved}}
+    }
+    throw new Error(path)
+  }}
+  const store=new r.ComposerSettingsStore(ctx,{delay:60000}),record=await store.load(owner)
+  assert.equal(record.value.backend,'enchanted-realtime');assert.equal(record.value.voice,'sol');await store.flush(owner)
+  assert.equal(puts.length,1);assert.equal(puts[0].backend,'enchanted-realtime');assert.equal(puts[0].voice,'sol');await store.dispose()
+})
 test('settings are isolated by both connection and profile',async()=>{
   const f=settingsFixture(),other={...owner,profile:'work'};await f.store.load(owner);await f.store.load(other)
   f.store.update(owner,{inputDeviceId:'private-mic'});await f.store.flush(owner)
   assert.equal(f.store.record(other).value.inputDeviceId,'default');assert.equal(f.store.record({...owner,connectionId:'remote'}).value.inputDeviceId,'default');await f.store.dispose()
 })
 function voiceFixture() {
-  const r=runtime();let stopped=0,released=0,sink,resumed=0
+  const r=runtime();let stopped=0,released=0,sink,resumed=0;const muted=[]
   const transcript=new r.LiveTranscriptBuffer(),audio={muted:false,acquire:async()=>({getTracks:()=>[]}),release:()=>{released++},monitorBarge:()=>{},interrupt:()=>{},resumeRemote:async()=>{resumed++},setMuted(value){this.muted=value;return value}}
-  const adapter={start:async request=>({id:'voice',owner:request.owner}),subscribe:(_id,fn)=>{sink=fn;return()=>{}},stop:async()=>{stopped++},interrupt:async()=>{},setMuted:async()=>{}}
+  const adapter={start:async request=>({id:'voice',owner:request.owner}),subscribe:(_id,fn)=>{sink=fn;return()=>{}},stop:async()=>{stopped++},interrupt:async()=>{},setMuted:async(_id,value)=>{muted.push(value)}}
   const controller=new r.LiveVoiceSessionController({ctx:{rest:async()=>({ok:true})},ownerRouter:{ensureSession:async()=>owner},transcript,delegation:{cancel:async()=>{},dispose:async()=>{}},audio,resolver:{resolve:async selection=>({adapter,selection})}})
-  return {controller,adapter,audio,get stops(){return stopped},get releases(){return released},get resumes(){return resumed},event:event=>sink(event)}
+  return {controller,adapter,audio,muted,get stops(){return stopped},get releases(){return released},get resumes(){return resumed},event:event=>sink(event)}
 }
+test('voice setMuted is idempotent for push-to-talk state',async()=>{
+  const f=voiceFixture();await f.controller.start({})
+  assert.equal(await f.controller.setMuted(true),true);assert.equal(await f.controller.setMuted(true),true);assert.equal(f.audio.muted,true)
+  assert.equal(await f.controller.setMuted(false),false);assert.equal(f.audio.muted,false);assert.deepEqual(f.muted,[true,true,false]);await f.controller.dispose()
+})
 test('a channel warning does not kill voice; fatal close retains its reason after cleanup',async()=>{
   const f=voiceFixture();await f.controller.start({})
   f.event({type:'error',payload:{message:'Temporary channel warning'}})

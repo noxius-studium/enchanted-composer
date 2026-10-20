@@ -37,11 +37,16 @@ function reconcileVoiceSettings(settings,catalog){
 }
 function createController(ctx) {
   const ownerRouter=new OwnerRouter(host),transcript=new LiveTranscriptBuffer(),audio=new AudioDeviceController(),draft=new ComposerDraftAdapter()
-  const enhancer=new PromptEnhancer({draftAdapter:draft,ownerRouter,api:ctx}),settingsStore=new ComposerSettingsStore(ctx)
+  const enhancer=new PromptEnhancer({draftAdapter:draft,ownerRouter,api:ctx,review:new EnhancementReview()}),draftShelf=new DraftShelfStore(ctx,{draftAdapter:draft,ownerRouter}),settingsStore=new ComposerSettingsStore(ctx)
   const delegation=new DelegationBridge({api:ctx,transcript}),resolver=new VoiceBackendResolver({'enchanted-realtime':new RealtimeVoiceAdapter(ctx,audio),'enchanted-bridge':new ComposerBridgeBackendAdapter(ctx,audio)})
   const voice=new LiveVoiceSessionController({ctx,ownerRouter,transcript,delegation,audio,resolver})
-  const controller={ctx,ownerRouter,transcript,audio,draft,enhancer,delegation,voice,settingsStore,settings:{...DEFAULT_SETTINGS},settingsOwner:null,voiceCatalog:null,library:validateLibrary(ctx.storage.get('library',null)||createLibrary()),libraryListeners:new Set(),
+  const interaction=new VoiceInteractionMode({setMuted:muted=>voice.setMuted(muted)}),controller={ctx,ownerRouter,transcript,audio,draft,enhancer,draftShelf,delegation,voice,interaction,settingsStore,settings:{...DEFAULT_SETTINGS},settingsOwner:null,voiceCatalog:null,library:validateLibrary(ctx.storage.get('library',null)||createLibrary()),libraryListeners:new Set(),composerControls:normalizeComposerControlVisibility(ctx.storage.get(COMPOSER_CONTROL_STORAGE_KEY,null)),composerControlListeners:new Set(),reviewProposal:null,reviewListeners:new Set(),
+    subscribeReviewProposal(listener){this.reviewListeners.add(listener);return()=>this.reviewListeners.delete(listener)},
+    setReviewProposal(proposal){if(this.reviewProposal&&this.reviewProposal!==proposal)enhancer.discardProposal(this.reviewProposal);this.reviewProposal=proposal;for(const listener of this.reviewListeners)listener(proposal)},
+    clearReviewProposal(proposal=this.reviewProposal){if(proposal!==this.reviewProposal)return false;this.reviewProposal=null;for(const listener of this.reviewListeners)listener(null);return true},
     saveLibrary(next){const value=validateLibrary(next);ctx.storage.set('library',value);this.library=value;for(const listener of this.libraryListeners)listener(value)},
+    subscribeComposerControls(listener){this.composerControlListeners.add(listener);return()=>this.composerControlListeners.delete(listener)},
+    setComposerControlVisibility(id,visible){if(!COMPOSER_CONTROL_DEFINITIONS.some(item=>item.id===id))throw new Error('Unknown composer control.');const next={...this.composerControls,[id]:visible===true};ctx.storage.set(COMPOSER_CONTROL_STORAGE_KEY,next);this.composerControls=next;for(const listener of this.composerControlListeners)listener(next);return next},
     async saveSettings(patch,owner=this.settingsOwner){if(!owner)throw new Error('Load settings before editing.');const record=settingsStore.update(owner,patch);this.settings=record.value;return record},
     async refreshControlSurface(){
       const owner=await ownerRouter.capture({allowDraft:true});this.settingsOwner=owner
@@ -59,10 +64,13 @@ function createController(ctx) {
       if(pendingDraft){const surface=draft.capture();if(!await draft.read(surface))await draft.replace(pendingDraft,surface)}
       const record=await settingsStore.load(owner);await settingsStore.flush(owner);this.settings=record.value
       if(!ownerRouter.isActive(owner))throw new Error('Chat changed before voice could start.')
-      return voice.start({...record.value},owner)
+      const session=await voice.start({...record.value},owner);interaction.start();return session
     },
-    async dispose(){await voice.dispose();await settingsStore.dispose();enhancer.dispose();this.libraryListeners.clear()}
+    async retryVoice(){const session=await voice.retry();interaction.start();return session},
+    async stopVoice(){await voice.stop();await interaction.cancel()},
+    async dispose(){if(this.reviewProposal)enhancer.discardProposal(this.reviewProposal);this.reviewProposal=null;this.reviewListeners.clear();this.composerControlListeners.clear();unsubscribeInteraction();await interaction.dispose();await voice.dispose();await settingsStore.dispose();enhancer.dispose();this.libraryListeners.clear()}
   }
+  const unsubscribeInteraction=voice.subscribe(snapshot=>{if(['idle','error'].includes(snapshot.state)&&interaction.callMode)void interaction.cancel()})
   return controller
 }
 export default {
@@ -70,6 +78,8 @@ export default {
   register(ctx){
     const controller=createController(ctx)
     ctx.register({id:'voice-transcript',area:COMPOSER_AREAS.top,order:10,render:()=>jsx(VoiceTranscriptPanel,{controller})})
+    ctx.register({id:'voice-task-inspector',area:COMPOSER_AREAS.top,order:11,render:()=>jsx(VoiceTaskInspector,{controller})})
+    ctx.register({id:'enhancement-review',area:COMPOSER_AREAS.top,order:11,render:()=>jsx(ComposerEnhancementReviewPanel,{controller})})
     ctx.register({id:'actions',area:COMPOSER_AREAS.actions,order:10,render:()=>jsx(ComposerActions,{controller})})
     ctx.register({id:'route',area:ROUTES_AREA,order:25,data:{path:'/enchanted-composer'},render:()=>jsx(EnchantedComposerPage,{controller})})
     ctx.register({id:'legacy-route',area:ROUTES_AREA,order:25,data:{path:'/composer-enhancements'},render:()=>jsx(EnchantedComposerPage,{controller})})

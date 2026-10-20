@@ -12,7 +12,7 @@ function validateLibrary(value) {
   const folders = value.folders.map(folder => ({ id: bounded(folder.id,64), name: bounded(folder.name,128), locked: Boolean(folder.locked) }))
   const ids = new Set(folders.map(folder => folder.id))
   if (folders.some(folder => !folder.id || !folder.name) || ids.size!==folders.length || !ids.has('enhancers')) throw new Error('Prompt-library folders are invalid.')
-  const prompts = value.prompts.map((prompt,index) => ({ id: bounded(prompt.id,64), folderId: bounded(prompt.folderId,64), name: bounded(prompt.name,128), body: bounded(prompt.body,12000), order: Number.isInteger(prompt.order) ? prompt.order : index }))
+  const prompts = value.prompts.map((prompt,index) => ({ id: bounded(prompt.id,64), folderId: bounded(prompt.folderId,64), name: bounded(prompt.name,128), body: bounded(prompt.body,12000), tags: [...new Set((Array.isArray(prompt.tags)?prompt.tags:[]).map(tag=>bounded(tag,64)).filter(Boolean))].slice(0,16), order: Number.isInteger(prompt.order) ? prompt.order : index }))
   if (prompts.some(prompt => !prompt.id || !ids.has(prompt.folderId) || !prompt.name) || new Set(prompts.map(prompt=>prompt.id)).size!==prompts.length) throw new Error('Prompt-library prompts are invalid.')
   const rawReasoning=value.enhanceWith?.reasoningEffort??''
   if(!REASONING_EFFORTS.includes(rawReasoning))throw new Error('Enhancement Thinking level is invalid.')
