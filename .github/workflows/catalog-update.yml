@@ -68,25 +68,33 @@ jobs:
         run: |
           set -euo pipefail
           BRANCH="catalog/enchanted-composer-v${VERSION}"
-          gh repo clone Deadtrix21/hermes-agent catalog
-          cd catalog
-          git remote set-url upstream https://github.com/NousResearch/hermes-agent.git 2>/dev/null || git remote add upstream https://github.com/NousResearch/hermes-agent.git
-          git fetch upstream main
-          git checkout -B "${BRANCH}" upstream/main
+          UPSTREAM_SHA="$(gh api repos/NousResearch/hermes-agent/git/ref/heads/main --jq '.object.sha')"
+          REF_ENDPOINT="repos/Deadtrix21/hermes-agent/git/refs/heads/${BRANCH}"
+          if gh api "${REF_ENDPOINT}" >/dev/null 2>&1; then
+            gh api --method PATCH "${REF_ENDPOINT}" -f sha="${UPSTREAM_SHA}" -F force=true >/dev/null
+          else
+            gh api --method POST repos/Deadtrix21/hermes-agent/git/refs \
+              -f ref="refs/heads/${BRANCH}" -f sha="${UPSTREAM_SHA}" >/dev/null
+          fi
 
-          ENTRY="plugin-catalog/enchanted-composer.yaml"
+          ENTRY="${RUNNER_TEMP}/enchanted-composer.yaml"
+          gh api --method GET \
+            -H "Accept: application/vnd.github.raw+json" \
+            repos/NousResearch/hermes-agent/contents/plugin-catalog/enchanted-composer.yaml \
+            -f ref=main > "${ENTRY}"
           mapfile -t CATALOG_IDENTITY < <(python "${GITHUB_WORKSPACE}/scripts/update_hermes_catalog_entry.py" "${ENTRY}" --show-current)
           OLD_VERSION="${CATALOG_IDENTITY[0]}"
           OLD_SHA="${CATALOG_IDENTITY[1]}"
           python "${GITHUB_WORKSPACE}/scripts/update_hermes_catalog_entry.py" "${ENTRY}" --version "${VERSION}" --sha "${RELEASE_SHA}"
 
-          git config user.name "Deadtrix21"
-          git config user.email "41898282+Deadtrix21@users.noreply.github.com"
-          git add "${ENTRY}"
-          git diff --cached --check
-          git commit -m "chore(plugin-catalog): update enchanted-composer to ${VERSION}"
-          git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/Deadtrix21/hermes-agent.git"
-          git push --force origin "HEAD:${BRANCH}"
+          FILE_ENDPOINT="repos/Deadtrix21/hermes-agent/contents/plugin-catalog/enchanted-composer.yaml"
+          FILE_SHA="$(gh api --method GET "${FILE_ENDPOINT}" -f ref="${BRANCH}" --jq '.sha')"
+          CONTENT="$(base64 -w 0 "${ENTRY}")"
+          gh api --method PUT "${FILE_ENDPOINT}" \
+            -f message="chore(plugin-catalog): update enchanted-composer to ${VERSION}" \
+            -f content="${CONTENT}" \
+            -f branch="${BRANCH}" \
+            -f sha="${FILE_SHA}" >/dev/null
 
           BODY_FILE="${RUNNER_TEMP}/enchanted-composer-catalog-pr.md"
           printf '%s\n' \
