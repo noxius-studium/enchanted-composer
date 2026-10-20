@@ -33,6 +33,45 @@ test('control page mounts with real controller and SDK-shaped hook surfaces',()=
   assert.ok(source.includes("role:'tabpanel'"))
 })
 
+test('every settings dropdown uses the shared themed picker instead of a native select',()=>{
+  const settings=source.slice(source.indexOf('/* SETTINGS_UI_START */'),source.indexOf('/* SETTINGS_UI_END */'))
+  assert.match(settings,/function ThemedSelect/)
+  assert.doesNotMatch(settings,/jsx\('select'/)
+  for(const label of ['Enhancement provider','Thinking level','Active prompt library','Prompt library destination','Voice connection','Live voice provider','Live voice engine','Voice','Voice language','Billing lane'])assert.ok(settings.includes(label),label)
+  assert.ok(settings.includes('ariaLabel:`${label} device`'))
+})
+
+test('composer bar settings let each icon be shown or hidden independently',()=>{
+  for(const id of ['voice','voice-mode','prompt-library','draft-shelf','review','enhance','undo','redo','settings'])assert.ok(source.includes(`id:'${id}'`),id)
+  assert.ok(source.includes("['composer','Composer bar']"))
+  assert.ok(source.includes('setComposerControlVisibility'))
+  assert.ok(source.includes('subscribeComposerControls'))
+  assert.ok(source.includes("type:'checkbox'"))
+})
+
+test('composer bar settings include a live icon preview and compact themed checkboxes',()=>{
+  assert.ok(source.includes('function ComposerBarPreview'))
+  assert.ok(source.includes("'aria-label':'Composer bar preview'"))
+  assert.ok(source.includes('ec-toggle-input'))
+  assert.ok(source.includes('ec-toggle-box'))
+  assert.ok(source.includes('Live preview'))
+})
+
+test('composer control visibility is bounded, persistent, and live',async()=>{
+  const r=runtime(),mem=storage({'composer-control-visibility':{voice:false,unknown:false}}),controller=r.createController({storage:mem,rest:async()=>({ok:true})})
+  assert.equal(Object.keys(controller.composerControls).length,r.COMPOSER_CONTROL_DEFINITIONS.length)
+  assert.equal(controller.composerControls.voice,false)
+  assert.equal(controller.composerControls.enhance,true)
+  assert.equal(controller.composerControls.unknown,undefined)
+  let observed
+  const unsubscribe=controller.subscribeComposerControls(value=>{observed=value})
+  controller.setComposerControlVisibility('enhance',false)
+  assert.equal(observed.enhance,false)
+  assert.equal(mem.map.get('composer-control-visibility').enhance,false)
+  assert.throws(()=>controller.setComposerControlVisibility('unknown',false),/Unknown composer control/)
+  unsubscribe();await controller.dispose()
+})
+
 test('audio autosave works with no voice readiness and controller updates real settings',async()=>{
   const r=runtime(),saved=r.settingsWire(r.DEFAULT_SETTINGS),calls=[],ctx={storage:storage(),rest:async(path,options)=>{calls.push(path);if(path==='/v1/settings')Object.assign(saved,options.body.settings);return {ok:true,exists:true,settings:{...saved}}}}
   const controller=r.createController(ctx);await controller.settingsStore.load(owner);controller.settingsOwner=owner

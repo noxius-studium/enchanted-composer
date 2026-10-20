@@ -85,6 +85,7 @@ def test_invalid_codex_voice_is_rejected_and_legacy_default_migrates(tmp_path: P
     assert migrated.voice == "cove"
 
 
+
 def test_provider_model_voice_billing_combinations_are_exact() -> None:
     options.validate_voice_selection(
         "enchanted-realtime", "codex", "subscription", "gpt-live-1-codex", "cove"

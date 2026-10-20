@@ -19,6 +19,7 @@ REQUIRED_PATHS=(
     Path("desktop/plugin.js"),*(Path("desktop/src")/part for part in PARTS),
     Path("scripts/build_desktop.py"),Path("scripts/build_dashboard.py"),Path("scripts/package.py"),Path("scripts/verify_desktop.mjs"),
     Path("docs/architecture.md"),Path("docs/installation.md"),Path("docs/migration.md"),Path("docs/privacy-and-security.md"),Path("docs/limitations.md"),
+    Path("docs/media/hero.svg"),Path("docs/media/banner.png"),Path("docs/media/enhancement-desktop.png"),Path("docs/media/voice-desktop.png"),Path("docs/media/prompts-mobile.png"),
 )
 def plugin_version(path:Path)->str:
     for line in path.read_text(encoding="utf-8").splitlines():

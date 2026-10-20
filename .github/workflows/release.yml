@@ -1,0 +1,94 @@
+name: Release package
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - uses: astral-sh/setup-uv@v6
+
+      - name: Install test dependencies
+        run: uv sync --locked --extra test
+
+      - name: Verify release source
+        run: |
+          uv run python scripts/build_desktop.py --check
+          uv run python scripts/build_dashboard.py --check
+          node --test tests/desktop/*.test.mjs tests/dashboard/*.test.mjs
+          uv run python -m pytest -q
+          uv run python -m ruff check dashboard tests scripts
+          node scripts/verify_desktop.mjs desktop/plugin.js
+
+      - name: Build SHA-identified release
+        id: release
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION="$(python -c 'import pathlib; print(next(line.split(":",1)[1].strip().split()[0] for line in pathlib.Path("plugin.yaml").read_text(encoding="utf-8").splitlines() if line.startswith("version:")))')"
+          COMMIT_SHA="$(git rev-parse HEAD)"
+          SHORT_SHA="$(git rev-parse --short=12 HEAD)"
+          if [[ "${GITHUB_REF_TYPE}" == "tag" && "${GITHUB_REF_NAME}" != "v${VERSION}" ]]; then
+            echo "Tag ${GITHUB_REF_NAME} does not match plugin version v${VERSION}." >&2
+            exit 1
+          fi
+          ARCHIVE="enchanted-composer-${VERSION}-${SHORT_SHA}.zip"
+          uv run python scripts/package.py --output "dist/${ARCHIVE}"
+          cd dist
+          sha256sum "${ARCHIVE}" > SHA256SUMS
+          sha256sum --check SHA256SUMS
+          ARCHIVE_SHA256="$(cut -d ' ' -f1 SHA256SUMS)"
+          VERSION="${VERSION}" COMMIT_SHA="${COMMIT_SHA}" SHORT_SHA="${SHORT_SHA}" ARCHIVE="${ARCHIVE}" ARCHIVE_SHA256="${ARCHIVE_SHA256}" \
+            python -c 'import json,os,pathlib; pathlib.Path("RELEASE-METADATA.json").write_text(json.dumps({"version":os.environ["VERSION"],"commit":os.environ["COMMIT_SHA"],"short_commit":os.environ["SHORT_SHA"],"archive":os.environ["ARCHIVE"],"sha256":os.environ["ARCHIVE_SHA256"]},indent=2)+"\n",encoding="utf-8")'
+          {
+            echo "version=${VERSION}"
+            echo "commit_sha=${COMMIT_SHA}"
+            echo "short_sha=${SHORT_SHA}"
+            echo "archive=${ARCHIVE}"
+            echo "archive_sha256=${ARCHIVE_SHA256}"
+            echo "artifact_name=enchanted-composer-${VERSION}-${SHORT_SHA}"
+          } >> "${GITHUB_OUTPUT}"
+
+      - name: Upload verified workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.release.outputs.artifact_name }}
+          path: |
+            dist/${{ steps.release.outputs.archive }}
+            dist/SHA256SUMS
+            dist/RELEASE-METADATA.json
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Publish tag release assets
+        if: github.ref_type == 'tag'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.release.outputs.version }}
+          ARCHIVE: ${{ steps.release.outputs.archive }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh release view "${GITHUB_REF_NAME}" >/dev/null 2>&1 || \
+            gh release create "${GITHUB_REF_NAME}" --verify-tag --title "Enchanted Composer ${VERSION}" --generate-notes
+          gh release upload "${GITHUB_REF_NAME}" \
+            "dist/${ARCHIVE}" \
+            "dist/SHA256SUMS" \
+            "dist/RELEASE-METADATA.json" \
+            --clobber

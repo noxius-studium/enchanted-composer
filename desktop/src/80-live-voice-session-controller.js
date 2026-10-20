@@ -75,12 +75,13 @@ class LiveVoiceSessionController {
     }
     this._emit()
   }
-  async mute() {
+  async setMuted(muted) {
     const session=this.session,adapter=this.adapter;if(!session)return false
-    const muted=this.audio.setMuted(!this.audio.muted);this._emit()
-    try{await adapter.setMuted(session.id,muted)}catch{this._note('mute-sync','Microphone changed locally; provider acknowledgement was unavailable.');this._emit()}
-    return muted
+    const value=this.audio.setMuted(Boolean(muted));this._emit()
+    try{await adapter.setMuted(session.id,value)}catch{this._note('mute-sync','Microphone changed locally; provider acknowledgement was unavailable.');this._emit()}
+    return value
   }
+  mute() { return this.setMuted(!this.audio.muted) }
   async interrupt() {
     if(!this.session||!this.botSpeaking||this.interruptInFlight)return false
     this.interruptInFlight=true;this.botSpeaking=false;this.audio.interrupt()

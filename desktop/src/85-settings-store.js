@@ -3,6 +3,13 @@ const DEFAULT_SETTINGS=Object.freeze({backend:'enchanted-realtime',engine:'gpt-l
 const SETTINGS_FIELDS=Object.freeze({backend:'backend',provider:'provider',billingLane:'billing_lane',engine:'engine',voice:'voice',language:'language',inputDeviceId:'input_device_id',outputDeviceId:'output_device_id',endpoint:'bridge_endpoint'})
 function settingsWire(settings) { return Object.fromEntries(Object.entries(SETTINGS_FIELDS).map(([key,wire])=>[wire,settings[key]])) }
 function settingsLocal(wire) { return Object.fromEntries(Object.entries(SETTINGS_FIELDS).map(([key,name])=>[key,wire[name]])) }
+function migrateRendererVoiceDefaults(settings) {
+  if(!settings||typeof settings!=='object')return null
+  const next={...settings}
+
+  if(next.backend==='enchanted-realtime'&&next.provider==='codex'&&next.billingLane==='subscription'&&(next.engine===undefined||next.engine==='gpt-live-1-codex')&&next.voice==='cedar')next.voice='cove'
+  return next
+}
 class ComposerSettingsStore {
   constructor(ctx,{delay=350}={}) { this.ctx=ctx;this.delay=delay;this.records=new Map();this.listeners=new Set();this.closed=false }
   key(owner) { return JSON.stringify([owner.connectionId,owner.profile]) }
@@ -11,8 +18,8 @@ class ComposerSettingsStore {
   record(owner) {
     const key=this.key(owner)
     if(!this.records.has(key)) {
-      const cached=this.ctx.storage.get(`settings:${key}`,null),pending=this.ctx.storage.get(`pending-settings:${key}`,null)
-      this.records.set(key,{key,owner:{...owner},value:{...DEFAULT_SETTINGS,...cached,...pending},saved:{...DEFAULT_SETTINGS,...cached},revision:pending?1:0,savedRevision:0,status:pending?'unsaved':'loading',error:'',loaded:false,timer:null,flight:null,loading:null})
+      const cached=migrateRendererVoiceDefaults(this.ctx.storage.get(`settings:${key}`,null)),pending=migrateRendererVoiceDefaults(this.ctx.storage.get(`pending-settings:${key}`,null))
+      this.records.set(key,{key,owner:{...owner},cachedValue:cached,value:{...DEFAULT_SETTINGS,...cached,...pending},saved:{...DEFAULT_SETTINGS,...cached},revision:pending?1:0,savedRevision:0,status:pending?'unsaved':'loading',error:'',loaded:false,timer:null,flight:null,loading:null})
     }
     return this.records.get(key)
   }
@@ -26,10 +33,11 @@ class ComposerSettingsStore {
         if(!result?.ok||!result.settings)throw new Error('Settings could not be read.')
         const saved={...DEFAULT_SETTINGS,...settingsLocal(result.settings)}
         record.saved=saved
-        if(!record.revision)record.value={...saved}
+        if(!record.revision&&result.exists===false&&record.cachedValue){record.value={...saved,...record.cachedValue};record.revision++}
+        else if(!record.revision)record.value={...saved}
         // One-time legacy renderer defaults belong only to the first adopting owner.
-        const legacy=this.ctx.storage.get('settings',null),claim=this.ctx.storage.get('settings-migration-owner',null)
-        if(result.exists===false && legacy && (!claim||claim===record.key) && !record.revision){
+        const legacy=migrateRendererVoiceDefaults(this.ctx.storage.get('settings',null)),claim=this.ctx.storage.get('settings-migration-owner',null)
+        if(result.exists===false && !record.cachedValue && legacy && (!claim||claim===record.key) && !record.revision){
           this.ctx.storage.set('settings-migration-owner',record.key);record.value={...saved,...legacy};record.revision++
         }
         record.loaded=true;record.status=record.revision>record.savedRevision?'unsaved':'saved';record.error=''

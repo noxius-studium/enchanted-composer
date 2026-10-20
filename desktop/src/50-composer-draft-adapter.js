@@ -18,6 +18,19 @@ class ComposerDraftAdapter {
     if(this.capture().surfaceId!==surface.surfaceId)throw new Error('The focused draft changed. Your text was not replaced.')
     if(!await this.api.composer.setDraft(surface.address,String(text).slice(0,12000)))throw new Error('Hermes did not accept the draft change. Reopen this chat and try again.')
   }
+  async compareAndReplace(expectedText,text,surface=this.capture(),revalidate=()=>{}) {
+    if(typeof expectedText!=='string'||typeof revalidate!=='function')throw new Error('Draft restore requires an exact current draft check.')
+    const target=String(text).slice(0,12000),checkSurface=()=>{const current=this.capture();if(current.surfaceId!==surface.surfaceId||current.address!==surface.address)throw new Error('The focused draft changed. Your text was not replaced.')}
+    checkSurface();revalidate()
+    // The public Composer API has separate read/write calls, not an atomic CAS. Re-read
+    // immediately before its acknowledged write, then verify the written value by read-back.
+    const current=await this.read(surface);if(current!==expectedText)throw new Error('Current draft changed; restore was not applied.')
+    revalidate();checkSurface()
+    if(!await this.api.composer.setDraft(surface.address,target))throw new Error('Hermes did not accept the draft change. Reopen this chat and try again.')
+    revalidate();checkSurface()
+    if(await this.read(surface)!==target)throw new Error('Hermes did not preserve the restored draft. Reopen this chat and try again.')
+    revalidate();checkSurface()
+  }
   async insert(text,surface=this.capture()) {
     if(this.capture().surfaceId!==surface.surfaceId)throw new Error('The focused draft changed.')
     if(!await this.api.composer.insertText(surface.address,String(text).slice(0,12000),{mode:'block'}))throw new Error('Hermes did not accept the prompt insertion.')
