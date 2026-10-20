@@ -120,7 +120,7 @@ The deterministic package is written to `dist/enchanted-composer-<version>.zip` 
 
 ## Verifiable releases
 
-The current manifest version is **0.2.6**. Release automation keeps this value synchronized across every package and documentation source.
+The current manifest version is **0.2.7**. Release automation keeps this value synchronized across every package and documentation source.
 
 The **CI** workflow runs automatically whenever a pull request is merged into `main`. Only a successful completed CI run unlocks the automatic **Release package** workflow for that exact `main` commit; a failed CI run cannot publish, and an older successful run is ignored if a newer merge has superseded it. The release workflow then:
 
