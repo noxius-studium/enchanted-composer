@@ -2,7 +2,9 @@ name: Release package
 
 on:
   workflow_dispatch:
-  push:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
     branches: [main]
 
 concurrency:
@@ -14,6 +16,7 @@ permissions:
 
 jobs:
   release:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -30,10 +33,18 @@ jobs:
 
       - name: Resolve automatic release version
         id: identity
+        env:
+          APPROVED_SHA: ${{ github.event.workflow_run.head_sha }}
         shell: bash
         run: |
           set -euo pipefail
           git fetch origin main --tags --force
+          MAIN_SHA="$(git rev-parse origin/main)"
+          if [[ -n "${APPROVED_SHA}" && "${APPROVED_SHA}" != "${MAIN_SHA}" ]]; then
+            echo "CI-approved ${APPROVED_SHA} was superseded by main ${MAIN_SHA}; the newer CI run owns publication."
+            echo "publish=false" >> "${GITHUB_OUTPUT}"
+            exit 0
+          fi
           git checkout -B main origin/main
 
           VERSION="$(python -c 'from pathlib import Path; from scripts.prepare_auto_release import read_version; print(read_version(Path.cwd()))')"
@@ -59,15 +70,18 @@ jobs:
           fi
 
           {
+            echo "publish=true"
             echo "version=${VERSION}"
             echo "tag=${TAG}"
             echo "commit_sha=${HEAD_SHA}"
           } >> "${GITHUB_OUTPUT}"
 
       - name: Install test dependencies
+        if: steps.identity.outputs.publish == 'true'
         run: uv sync --locked --extra test
 
       - name: Verify release source
+        if: steps.identity.outputs.publish == 'true'
         run: |
           uv run python scripts/build_desktop.py --check
           uv run python scripts/build_dashboard.py --check
@@ -77,6 +91,7 @@ jobs:
           node scripts/verify_desktop.mjs desktop/plugin.js
 
       - name: Build SHA-identified release
+        if: steps.identity.outputs.publish == 'true'
         id: release
         env:
           VERSION: ${{ steps.identity.outputs.version }}
@@ -104,6 +119,7 @@ jobs:
           } >> "${GITHUB_OUTPUT}"
 
       - name: Upload verified workflow artifact
+        if: steps.identity.outputs.publish == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: ${{ steps.release.outputs.artifact_name }}
@@ -115,6 +131,7 @@ jobs:
           retention-days: 30
 
       - name: Publish automatic GitHub release
+        if: steps.identity.outputs.publish == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
           VERSION: ${{ steps.identity.outputs.version }}

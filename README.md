@@ -122,7 +122,7 @@ The deterministic package is written to `dist/enchanted-composer-<version>.zip` 
 
 The current manifest version is **0.2.2**. Release automation keeps this value synchronized across every package and documentation source.
 
-The **CI** and **Release package** workflows run automatically whenever a pull request is merged into `main`. CI verifies the merged source. The release workflow then:
+The **CI** workflow runs automatically whenever a pull request is merged into `main`. Only a successful completed CI run unlocks the automatic **Release package** workflow for that exact `main` commit; a failed CI run cannot publish, and an older successful run is ignored if a newer merge has superseded it. The release workflow then:
 
 1. re-runs the complete verification suite,
 2. uses an explicit new manifest version when the merged PR provides one, or increments the patch version automatically,
@@ -141,6 +141,12 @@ RELEASE-METADATA.json
 ```
 
 `RELEASE-METADATA.json` records the plugin version, full commit SHA, short commit SHA, archive name, and SHA-256 checksum. The workflow verifies `SHA256SUMS` before uploading anything, confirms the tag points at the exact verified commit, and publishes the same files as GitHub Release assets.
+
+### Official Hermes catalog updates
+
+Catalog promotion is intentionally separate from release automation. Run the **Propose Hermes catalog update** action manually and optionally choose a published release tag; a blank tag selects the latest stable release. The action updates the exact SHA pin, version, README, banner, and screenshot references on the `Deadtrix21/hermes-agent` fork, then opens or refreshes a pull request against `NousResearch/hermes-agent`.
+
+The action requires a repository Actions secret named `HERMES_CATALOG_TOKEN` with permission to push to the `Deadtrix21/hermes-agent` fork and open public pull requests. It cannot publish directly: Hermes catalog CI and Nous maintainer review remain mandatory, and the official plugin documentation updates only after that PR is merged.
 
 ## Boundaries that stay visible
 
