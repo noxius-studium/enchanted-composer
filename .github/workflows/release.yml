@@ -3,8 +3,11 @@ name: Release package
 on:
   workflow_dispatch:
   push:
-    tags:
-      - "v*"
+    branches: [main]
+
+concurrency:
+  group: enchanted-composer-main-release
+  cancel-in-progress: false
 
 permissions:
   contents: write
@@ -15,6 +18,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: main
           fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
@@ -23,6 +27,42 @@ jobs:
         with:
           node-version: "22"
       - uses: astral-sh/setup-uv@v6
+
+      - name: Resolve automatic release version
+        id: identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin main --tags --force
+          git checkout -B main origin/main
+
+          VERSION="$(python -c 'from pathlib import Path; from scripts.prepare_auto_release import read_version; print(read_version(Path.cwd()))')"
+          TAG="v${VERSION}"
+          HEAD_SHA="$(git rev-parse HEAD)"
+
+          if git rev-parse --verify --quiet "refs/tags/${TAG}" >/dev/null; then
+            TAG_SHA="$(git rev-list -n 1 "${TAG}")"
+            if [[ "${TAG_SHA}" != "${HEAD_SHA}" ]]; then
+              VERSION="$(VERSION="${VERSION}" python -c 'import os; major,minor,patch=map(int,os.environ["VERSION"].split(".")); print(f"{major}.{minor}.{patch+1}")')"
+              while git rev-parse --verify --quiet "refs/tags/v${VERSION}" >/dev/null; do
+                VERSION="$(VERSION="${VERSION}" python -c 'import os; major,minor,patch=map(int,os.environ["VERSION"].split(".")); print(f"{major}.{minor}.{patch+1}")')"
+              done
+              TAG="v${VERSION}"
+              python scripts/prepare_auto_release.py "${VERSION}"
+              git config user.name "github-actions[bot]"
+              git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+              git add README.md __init__.py dashboard/manifest.json docs/installation.md plugin.yaml pyproject.toml uv.lock
+              git commit -m "chore(release): bump version to ${VERSION} [skip ci]"
+              git push origin HEAD:main
+              HEAD_SHA="$(git rev-parse HEAD)"
+            fi
+          fi
+
+          {
+            echo "version=${VERSION}"
+            echo "tag=${TAG}"
+            echo "commit_sha=${HEAD_SHA}"
+          } >> "${GITHUB_OUTPUT}"
 
       - name: Install test dependencies
         run: uv sync --locked --extra test
@@ -38,30 +78,28 @@ jobs:
 
       - name: Build SHA-identified release
         id: release
+        env:
+          VERSION: ${{ steps.identity.outputs.version }}
+          COMMIT_SHA: ${{ steps.identity.outputs.commit_sha }}
         shell: bash
         run: |
           set -euo pipefail
-          VERSION="$(python -c 'import pathlib; print(next(line.split(":",1)[1].strip().split()[0] for line in pathlib.Path("plugin.yaml").read_text(encoding="utf-8").splitlines() if line.startswith("version:")))')"
-          COMMIT_SHA="$(git rev-parse HEAD)"
-          SHORT_SHA="$(git rev-parse --short=12 HEAD)"
-          if [[ "${GITHUB_REF_TYPE}" == "tag" && "${GITHUB_REF_NAME}" != "v${VERSION}" ]]; then
-            echo "Tag ${GITHUB_REF_NAME} does not match plugin version v${VERSION}." >&2
+          ACTUAL_SHA="$(git rev-parse HEAD)"
+          if [[ "${ACTUAL_SHA}" != "${COMMIT_SHA}" ]]; then
+            echo "Release identity drifted from ${COMMIT_SHA} to ${ACTUAL_SHA}." >&2
             exit 1
           fi
+          SHORT_SHA="$(git rev-parse --short=12 HEAD)"
           ARCHIVE="enchanted-composer-${VERSION}-${SHORT_SHA}.zip"
           uv run python scripts/package.py --output "dist/${ARCHIVE}"
           cd dist
           sha256sum "${ARCHIVE}" > SHA256SUMS
           sha256sum --check SHA256SUMS
-          ARCHIVE_SHA256="$(cut -d ' ' -f1 SHA256SUMS)"
-          VERSION="${VERSION}" COMMIT_SHA="${COMMIT_SHA}" SHORT_SHA="${SHORT_SHA}" ARCHIVE="${ARCHIVE}" ARCHIVE_SHA256="${ARCHIVE_SHA256}" \
+          VERSION="${VERSION}" COMMIT_SHA="${COMMIT_SHA}" SHORT_SHA="${SHORT_SHA}" ARCHIVE="${ARCHIVE}" ARCHIVE_SHA256="$(cut -d ' ' -f1 SHA256SUMS)" \
             python -c 'import json,os,pathlib; pathlib.Path("RELEASE-METADATA.json").write_text(json.dumps({"version":os.environ["VERSION"],"commit":os.environ["COMMIT_SHA"],"short_commit":os.environ["SHORT_SHA"],"archive":os.environ["ARCHIVE"],"sha256":os.environ["ARCHIVE_SHA256"]},indent=2)+"\n",encoding="utf-8")'
           {
-            echo "version=${VERSION}"
-            echo "commit_sha=${COMMIT_SHA}"
             echo "short_sha=${SHORT_SHA}"
             echo "archive=${ARCHIVE}"
-            echo "archive_sha256=${ARCHIVE_SHA256}"
             echo "artifact_name=enchanted-composer-${VERSION}-${SHORT_SHA}"
           } >> "${GITHUB_OUTPUT}"
 
@@ -76,18 +114,29 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
-      - name: Publish tag release assets
-        if: github.ref_type == 'tag'
+      - name: Publish automatic GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
-          VERSION: ${{ steps.release.outputs.version }}
+          VERSION: ${{ steps.identity.outputs.version }}
+          TAG: ${{ steps.identity.outputs.tag }}
+          COMMIT_SHA: ${{ steps.identity.outputs.commit_sha }}
           ARCHIVE: ${{ steps.release.outputs.archive }}
         shell: bash
         run: |
           set -euo pipefail
-          gh release view "${GITHUB_REF_NAME}" >/dev/null 2>&1 || \
-            gh release create "${GITHUB_REF_NAME}" --verify-tag --title "Enchanted Composer ${VERSION}" --generate-notes
-          gh release upload "${GITHUB_REF_NAME}" \
+          if git rev-parse --verify --quiet "refs/tags/${TAG}" >/dev/null; then
+            TAG_SHA="$(git rev-list -n 1 "${TAG}")"
+            if [[ "${TAG_SHA}" != "${COMMIT_SHA}" ]]; then
+              echo "${TAG} points to ${TAG_SHA}, not ${COMMIT_SHA}." >&2
+              exit 1
+            fi
+          else
+            git tag -a "${TAG}" "${COMMIT_SHA}" -m "Enchanted Composer ${TAG}"
+            git push origin "${TAG}"
+          fi
+          gh release view "${TAG}" >/dev/null 2>&1 || \
+            gh release create "${TAG}" --verify-tag --target "${COMMIT_SHA}" --title "Enchanted Composer ${VERSION}" --generate-notes
+          gh release upload "${TAG}" \
             "dist/${ARCHIVE}" \
             "dist/SHA256SUMS" \
             "dist/RELEASE-METADATA.json" \
