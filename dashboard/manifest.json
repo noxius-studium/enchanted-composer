@@ -2,7 +2,7 @@
   "name": "composer-enhancements",
   "label": "Enchanted Composer",
   "description": "Voice provider, authentication, and usage controls for Enchanted Composer.",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "tab": {
     "path": "/enchanted-composer",
     "position": "end"
