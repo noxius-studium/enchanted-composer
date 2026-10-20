@@ -120,7 +120,7 @@ The deterministic package is written to `dist/enchanted-composer-<version>.zip` 
 
 ## Verifiable releases
 
-The **Release package** workflow can be run manually or by pushing a version tag such as `v0.2.0`.
+The **Release package** workflow can be run manually or by pushing a version tag such as `v0.2.1`.
 
 Every workflow build produces:
 
