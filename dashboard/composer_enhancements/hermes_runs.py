@@ -89,8 +89,8 @@ def capability_context(owner_value: object)->str:
     try:skills=_entries(_request(owner,"GET","/v1/skills"),"skills")
     except RuntimeError:
         try:
-            from tools.skills_tool import _find_all_skills
-            skills=[item for item in _find_all_skills() if isinstance(item,dict)]
+            from tools.skills_tool import find_all_skills
+            skills=[item for item in find_all_skills() if isinstance(item,dict)]
         except (ImportError,OSError,RuntimeError,TypeError,ValueError):raise RuntimeError("Hermes skill catalog is unavailable.") from None
     toolsets=_entries(_request(owner,"GET","/v1/toolsets"),"toolsets")
     lines=["Hermes capabilities available through the chat-bound Live Voice execution handoff.","Installed skills:"]

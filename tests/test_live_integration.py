@@ -97,6 +97,30 @@ def test_capability_catalog_comes_from_api_server_skills_and_enabled_toolsets(mo
     assert "unused" not in result
 
 
+def test_capability_catalog_falls_back_to_current_local_skill_catalog(monkeypatch: pytest.MonkeyPatch) -> None:
+    import sys
+    import types
+
+    def request(_owner,method,path,body=None,timeout=10):
+        assert method=="GET" and body is None and timeout==10
+        if path=="/v1/skills":raise RuntimeError("skills endpoint failed")
+        if path=="/v1/toolsets":return {"object":"list","data":[{"name":"terminal","enabled":True,"tools":["terminal"]}]}
+        raise AssertionError(path)
+
+    skills_tool=types.ModuleType("tools.skills_tool")
+    skills_tool.find_all_skills=lambda:[{"name":"github","category":"software-development","description":"GitHub workflows."}]
+    tools=types.ModuleType("tools")
+    tools.skills_tool=skills_tool
+    monkeypatch.setitem(sys.modules,"tools",tools)
+    monkeypatch.setitem(sys.modules,"tools.skills_tool",skills_tool)
+    monkeypatch.setattr(hermes_runs,"_request",request)
+
+    result=hermes_runs.capability_context(OWNER)
+
+    assert "software-development / github: GitHub workflows." in result
+    assert "tools: terminal" in result
+
+
 def test_run_targets_only_the_chat_where_live_voice_started_and_is_owner_fenced(monkeypatch: pytest.MonkeyPatch) -> None:
     hermes_runs._OWNERS.clear();calls=[]
     def request(_owner,method,path,body=None,timeout=10):
