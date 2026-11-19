@@ -3,7 +3,7 @@ import test from 'node:test'
 import {runtime,source,storage,owner} from './runtime-helper.mjs'
 
 test('Enchanted Composer registers new and legacy routes with a single settings navigation',async()=>{
-  const {plugin}=runtime(),registrations=[];let dispose
+  const {plugin}=runtime({host:{composer:{getDraft:async()=>'',setDraft:async()=>true,insertText:async()=>true},state:{focusedSessionOwner:{get:()=>({connectionId:'local',profile:'default'})},focusedSessionId:{get:()=>'rt'},focusedStoredSessionId:{get:()=>'st'}},profileRoutes:async()=>[],requestProfile:async()=>({}),notify:()=>{},navigate:()=>{},openSession:async()=>{}}}),registrations=[];let dispose
   plugin.register({storage:storage(),rest:async()=>({ok:true}),register:item=>registrations.push(item),onDispose:fn=>{dispose=fn}})
   assert.equal(plugin.name,'Enchanted Composer')
   assert.equal(plugin.id,'composer-enhancements') // preserve installed storage namespace

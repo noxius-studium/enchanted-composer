@@ -7,6 +7,45 @@ const ACTION_CLASS = 'inline-flex size-(--composer-control-size) shrink-0 items-
 const now = () => Date.now()
 const bounded = (value, limit = 8192) => typeof value === 'string' ? value.trim().slice(0, limit) : ''
 function publicError(error, fallback = 'Enchanted Composer could not complete that action.') { return bounded(error && error.message, 240) || fallback }
+/* HOST_COMPAT_START */
+// Host-update durability contract (user requirement 2026-11-19). The plugin
+// binds only to public Hermes seams; when a host update removes one, it fails
+// closed with an explicit update notice instead of scraping private APIs or
+// touching user data. Mirrors plugin.yaml requires_hermes.
+const HOST_COMPAT_VERSION = '1'
+const PLUGIN_REQUIRES_HERMES = '>=0.21.5'
+const REQUIRED_HOST_SEAMS = Object.freeze([
+  { id: 'composer.getDraft', critical: true, probe: h => typeof h?.composer?.getDraft === 'function' },
+  { id: 'composer.setDraft', critical: true, probe: h => typeof h?.composer?.setDraft === 'function' },
+  { id: 'composer.insertText', critical: true, probe: h => typeof h?.composer?.insertText === 'function' },
+  { id: 'state.focusedSessionOwner', critical: true, probe: h => typeof h?.state?.focusedSessionOwner?.get === 'function' },
+  { id: 'state.focusedSessionId', critical: true, probe: h => typeof h?.state?.focusedSessionId?.get === 'function' },
+  { id: 'state.focusedStoredSessionId', critical: true, probe: h => typeof h?.state?.focusedStoredSessionId?.get === 'function' },
+  { id: 'profileRoutes', critical: true, probe: h => typeof h?.profileRoutes === 'function' },
+  { id: 'requestProfile', critical: true, probe: h => typeof h?.requestProfile === 'function' },
+  { id: 'notify', critical: false, probe: h => typeof h?.notify === 'function' },
+  { id: 'navigate', critical: false, probe: h => typeof h?.navigate === 'function' },
+  { id: 'openSession', critical: false, probe: h => typeof h?.openSession === 'function' },
+])
+const OPTIONAL_BROWSER_SEAMS = Object.freeze([
+  { id: 'ResizeObserver', probe: () => typeof ResizeObserver !== 'undefined' },
+  { id: 'clipboard', probe: () => typeof navigator !== 'undefined' && typeof navigator.clipboard?.writeText === 'function' },
+])
+function hostCompatibility(h = host) {
+  const seams = REQUIRED_HOST_SEAMS.map(seam => ({ id: seam.id, critical: seam.critical, available: seam.probe(h) }))
+  const optional = OPTIONAL_BROWSER_SEAMS.map(seam => ({ id: seam.id, available: seam.probe() }))
+  const missingCritical = seams.filter(seam => seam.critical && !seam.available).map(seam => seam.id)
+  return { version: HOST_COMPAT_VERSION, requiresHermes: PLUGIN_REQUIRES_HERMES, checkedAt: now(), seams, optional, missingCritical, ok: missingCritical.length === 0 }
+}
+function HostCompatNotice({ controller }) {
+  const compat = controller.hostCompat || hostCompatibility()
+  return jsxs('section', { role: 'alert', 'aria-label': 'Hermes compatibility notice', className: 'mx-2 mb-1 rounded-md border border-(--ui-stroke-secondary) bg-(--ui-background) p-2 text-xs', children: [
+    jsx('strong', { children: 'Enchanted Composer needs a Hermes Desktop update' }),
+    jsxs('p', { className: 'mt-1 text-(--ui-text-secondary)', children: [`Missing public seams: ${compat.missingCritical.join(', ') || 'unknown'}.`, `Requires Hermes ${compat.requiresHermes}.`].join(' ') }),
+    jsx('p', { className: 'mt-1 text-(--ui-text-tertiary)', children: 'Your drafts, prompt libraries, settings, and saved briefs are untouched. Composer actions stay hidden until the public API is available again; settings and diagnostics remain reachable from the sidebar.' }),
+  ] })
+}
+/* HOST_COMPAT_END */
 /* PURE_CONTRACT_SOURCE */
 /* CONTRACTS_START */
 const CONTRACT_VERSION = '1'
@@ -1407,6 +1446,14 @@ function ComposerControlsPanel({controller}) {
   useEffect(()=>controller.subscribeComposerControls(value=>setVisibility({...value})),[controller])
   return jsxs('section',{className:'ec-section',children:[jsx(PanelHeader,{title:'Composer bar',description:'Choose exactly which Enchanted Composer controls appear beside the message box.'}),jsx(ComposerBarPreview,{visibility}),jsx(RailLayoutChoice,{controller}),jsx('div',{className:'mt-4 grid gap-1.5',children:COMPOSER_CONTROL_DEFINITIONS.map(item=>jsxs('label',{className:'ec-control-toggle rounded-md border border-(--ui-stroke-secondary) bg-(--ui-control-background,transparent) px-3 py-2',children:[jsxs('span',{className:'min-w-0',children:[jsx('strong',{className:'block text-xs',children:item.label}),jsx('span',{className:'mt-0.5 block text-[10px] font-normal leading-4 text-(--ui-text-tertiary)',children:item.description})]}),jsxs('span',{className:'ec-toggle-control',children:[jsx('input',{type:'checkbox',className:'ec-toggle-input',checked:visibility[item.id]!==false,'aria-label':`Show ${item.label}`,onChange:event=>controller.setComposerControlVisibility(item.id,event.target.checked)}),jsx('span',{className:'ec-toggle-box','aria-hidden':true,children:jsx(Codicon,{name:'check',size:'0.65rem'})})]})]},item.id))}),jsx('p',{className:'ec-muted',children:'The settings page remains available from the sidebar even if you hide its composer icon.'})]})
 }
+function HostCompatPanel({controller}) {
+  const [compat,setCompat]=useState(()=>controller.hostCompat||hostCompatibility())
+  return jsxs('div',{className:'mt-2',children:[jsx('hr',{className:'ec-divider'}),jsx('h2',{children:'Host compatibility'}),
+    jsxs('p',{className:'ec-muted',children:[`Contract v${compat.version} · requires Hermes ${compat.requiresHermes} · checked ${new Date(compat.checkedAt).toLocaleTimeString()}.`,' Only public Hermes seams are used; a host update that removes one shows an explicit notice instead of breaking silently.'].join(' ')}),
+    jsx('div',{className:'mt-1 space-y-0.5',children:compat.seams.map(seam=>jsxs('div',{className:'flex items-center justify-between gap-2 text-xs',children:[jsx('span',{children:seam.id}),jsx('span',{className:seam.available?'':'ec-error',children:seam.available?'Available':(seam.critical?'Missing · required':'Missing · optional')})]},seam.id))}),
+    jsx('p',{className:'ec-muted',children:compat.optional.map(seam=>`${seam.id}: ${seam.available?'available':'unavailable (guarded fallback)'}`).join(' · ')}),
+    jsx(Button,{type:'button',size:'sm',variant:'ghost',onClick:()=>{const next=hostCompatibility();controller.hostCompat=next;setCompat(next)},children:'Re-check compatibility'})]})
+}
 const SETTINGS_TABS=Object.freeze([['enhancement','Enhancement'],['prompts','Prompts'],['composer','Composer bar'],['voice','Voice'],['audio','Audio'],['usage','Account & usage']])
 function EnchantedComposerPage({controller}) {
   const [tab,setTab]=useState(()=>{const hint=controller.ctx.storage.get('ec-settings-tab-hint',null);if(hint){controller.ctx.storage.remove?.('ec-settings-tab-hint');if(SETTINGS_TABS.some(([id])=>id===hint))return hint}return 'enhancement'}),[state,setState]=useState({loading:true,error:'',record:null}),[scan,setScan]=useState(false),[composeMode,setComposeMode]=useState(()=>controller.composeMode)
@@ -1429,7 +1476,7 @@ function EnchantedComposerPage({controller}) {
     jsx('div',{className:'ec-note',children:'Voice captions are optional and temporary. Tool requests and their results appear in your Hermes chat. Full voice-history synchronization is not included in this release.'})]})
   const audio=jsxs('section',{className:'ec-section',children:[jsx(PanelHeader,{title:'Microphone & speaker',description:'Choose where you speak and listen. These choices save independently of provider sign-in.',actions:jsx(Button,{size:'sm',variant:'ghost',disabled:scan,onClick:async()=>{setScan(true);try{const devices=await controller.audio.devices({requestPermission:true});if(mounted.current)setState(previous=>({...previous,devices}))}catch(error){if(mounted.current)setState(previous=>({...previous,error:publicError(error)}))}finally{if(mounted.current)setScan(false)}},children:scan?'Detecting…':'Detect audio devices'})}),
     jsx('div',{className:'ec-grid',children:[['Microphone','audioinput','inputDeviceId'],['Speaker','audiooutput','outputDeviceId']].map(([label,kind,key])=>jsx(Field,{label,children:jsx(ThemedSelect,{ariaLabel:`${label} device`,value:settings[key],options:[option('default','System default'),...(state.devices||[]).filter(d=>d.kind===kind&&d.id!=='default').map(d=>option(d.id,d.label)),settings[key]!=='default'&&!(state.devices||[]).some(d=>d.id===settings[key])?option(settings[key],'Saved device · not currently detected'):null],onChange:value=>update({[key]:value})})},key))}),jsx('p',{className:'ec-muted',children:'Device detection briefly requests microphone permission, then releases it. Changes apply to the next call.'})]})
-  const usage=jsxs('section',{className:'ec-section',children:[jsx(PanelHeader,{title:'Account & usage',description:state.auth?.subscription?.ready?'Codex CLI detected. Authentication is verified by Codex when voice starts.':'Install and sign in with the official Codex CLI to use subscription voice.',actions:jsx(Button,{size:'sm',variant:'ghost',onClick:refresh,children:'Refresh status'})}),jsx('div',{className:'ec-note',children:'Enchanted Composer does not read, refresh, back up, or write Codex OAuth files. Run codex login outside Hermes if authentication is required.'}),jsx('p',{className:'ec-muted',children:state.auth?.subscription?.detail||'Codex CLI status is unavailable.'}),jsx('hr',{className:'ec-divider'}),jsx('h2',{children:'Voice activity'}),jsx('p',{className:'ec-muted',children:'Local voice has no allowance; these are activity totals, not quota estimates.'}),usageRow('Today',state.usage?.today),usageRow('Last 5 hours',state.usage?.rolling5h),usageRow('Last 24 hours',state.usage?.rolling24h),usageRow('This week',state.usage?.week)]})
+  const usage=jsxs('section',{className:'ec-section',children:[jsx(PanelHeader,{title:'Account & usage',description:state.auth?.subscription?.ready?'Codex CLI detected. Authentication is verified by Codex when voice starts.':'Install and sign in with the official Codex CLI to use subscription voice.',actions:jsx(Button,{size:'sm',variant:'ghost',onClick:refresh,children:'Refresh status'})}),jsx('div',{className:'ec-note',children:'Enchanted Composer does not read, refresh, back up, or write Codex OAuth files. Run codex login outside Hermes if authentication is required.'}),jsx('p',{className:'ec-muted',children:state.auth?.subscription?.detail||'Codex CLI status is unavailable.'}),jsx('hr',{className:'ec-divider'}),jsx('h2',{children:'Voice activity'}),jsx('p',{className:'ec-muted',children:'Local voice has no allowance; these are activity totals, not quota estimates.'}),usageRow('Today',state.usage?.today),usageRow('Last 5 hours',state.usage?.rolling5h),usageRow('Last 24 hours',state.usage?.rolling24h),usageRow('This week',state.usage?.week),jsx(HostCompatPanel,{controller})]})
   const panel=tab==='enhancement'?jsx(EnhancementModelPanel,{controller,catalog:state.catalog,error:state.modelError}):tab==='prompts'?jsx(PromptLibraryPanel,{controller}):tab==='composer'?jsx(ComposerControlsPanel,{controller}):tab==='voice'?voice:tab==='audio'?audio:usage
   return jsxs('main',{className:'ec-settings',children:[jsx('style',{children:EC_STYLES}),jsxs('header',{className:'ec-head',children:[jsxs('div',{children:[jsx('h1',{children:'Enchanted Composer'}),jsx('p',{className:'ec-muted',children:owner?`Voice & audio · ${owner.profile} on ${owner.connectionId}`:'Better drafts. Easier conversations.'})]}),jsx(SettingsStatus,{record:state.record,onRetry:retry})]}),
     jsx('nav',{className:'ec-tabs',role:'tablist','aria-label':'Enchanted Composer settings',children:SETTINGS_TABS.map(([id,label])=>jsx('button',{type:'button',role:'tab',id:`ec-tab-${id}`,'aria-selected':tab===id,'aria-controls':`ec-panel-${id}`,onClick:()=>setTab(id),children:label},id))}),
@@ -1866,7 +1913,7 @@ function createController(ctx) {
   const enhancer=new PromptEnhancer({draftAdapter:draft,ownerRouter,api:ctx,review:new EnhancementReview()}),draftShelf=new DraftShelfStore(ctx,{draftAdapter:draft,ownerRouter}),settingsStore=new ComposerSettingsStore(ctx)
   const delegation=new DelegationBridge({api:ctx,transcript}),resolver=new VoiceBackendResolver({'enchanted-realtime':new RealtimeVoiceAdapter(ctx,audio),'enchanted-bridge':new ComposerBridgeBackendAdapter(ctx,audio)})
   const voice=new LiveVoiceSessionController({ctx,ownerRouter,transcript,delegation,audio,resolver})
-  const interaction=new VoiceInteractionMode({setMuted:muted=>voice.setMuted(muted)}),controller={ctx,ownerRouter,transcript,audio,draft,enhancer,draftShelf,delegation,voice,interaction,settingsStore,settings:{...DEFAULT_SETTINGS},settingsOwner:null,voiceCatalog:null,library:validateLibrary(ctx.storage.get('library',null)||createLibrary()),libraryListeners:new Set(),composerControls:normalizeComposerControlVisibility(ctx.storage.get(COMPOSER_CONTROL_STORAGE_KEY,null)),composerControlListeners:new Set(),railLayoutVersion:normalizeRailLayoutVersion(ctx.storage.get(RAIL_LAYOUT_STORAGE_KEY,0)),railLayoutListeners:new Set(),enhancementApplyMode:ctx.storage.get('enhancement-apply-mode','review')==='immediate'?'immediate':'review',enhancementApplyModeListeners:new Set(),historyOpen:false,historyListeners:new Set(),brief:validateBrief(ctx.storage.get('compose-active-brief',null)||createBrief()),briefListeners:new Set(),composeMode:['inline','expanded'].includes(ctx.storage.get('compose-mode','closed'))?ctx.storage.get('compose-mode','closed'):'closed',composeListeners:new Set(),reviewProposal:null,reviewListeners:new Set(),
+  const interaction=new VoiceInteractionMode({setMuted:muted=>voice.setMuted(muted)}),controller={ctx,ownerRouter,transcript,audio,draft,enhancer,draftShelf,delegation,voice,interaction,settingsStore,settings:{...DEFAULT_SETTINGS},settingsOwner:null,voiceCatalog:null,library:validateLibrary(ctx.storage.get('library',null)||createLibrary()),libraryListeners:new Set(),composerControls:normalizeComposerControlVisibility(ctx.storage.get(COMPOSER_CONTROL_STORAGE_KEY,null)),composerControlListeners:new Set(),railLayoutVersion:normalizeRailLayoutVersion(ctx.storage.get(RAIL_LAYOUT_STORAGE_KEY,0)),railLayoutListeners:new Set(),enhancementApplyMode:ctx.storage.get('enhancement-apply-mode','review')==='immediate'?'immediate':'review',enhancementApplyModeListeners:new Set(),historyOpen:false,historyListeners:new Set(),hostCompat:null,brief:validateBrief(ctx.storage.get('compose-active-brief',null)||createBrief()),briefListeners:new Set(),composeMode:['inline','expanded'].includes(ctx.storage.get('compose-mode','closed'))?ctx.storage.get('compose-mode','closed'):'closed',composeListeners:new Set(),reviewProposal:null,reviewListeners:new Set(),
     subscribeReviewProposal(listener){this.reviewListeners.add(listener);return()=>this.reviewListeners.delete(listener)},
     setReviewProposal(proposal){if(this.reviewProposal&&this.reviewProposal!==proposal)enhancer.discardProposal(this.reviewProposal);this.reviewProposal=proposal;for(const listener of this.reviewListeners)listener(proposal)},
     clearReviewProposal(proposal=this.reviewProposal){if(proposal!==this.reviewProposal)return false;this.reviewProposal=null;for(const listener of this.reviewListeners)listener(null);return true},
@@ -1931,6 +1978,17 @@ export default {
   id:PLUGIN_ID,name:'Enchanted Composer',description:'Live voice, reusable prompts, and dependable draft enhancement.',defaultEnabled:false,
   register(ctx){
     const controller=createController(ctx)
+    controller.hostCompat=hostCompatibility()
+    if(!controller.hostCompat.ok){
+      // A host update removed a public seam: degrade visibly and keep user data
+      // untouched. Never fall back to private APIs or DOM scraping.
+      ctx.register({id:'host-compat-notice',area:COMPOSER_AREAS.top,order:8,render:()=>jsx(HostCompatNotice,{controller})})
+      ctx.register({id:'route',area:ROUTES_AREA,order:25,data:{path:'/enchanted-composer'},render:()=>jsx(EnchantedComposerPage,{controller})})
+      ctx.register({id:'legacy-route',area:ROUTES_AREA,order:25,data:{path:'/composer-enhancements'},render:()=>jsx(EnchantedComposerPage,{controller})})
+      ctx.register({id:'sidebar-nav',area:SIDEBAR_NAV_AREA,order:25,data:{path:'/enchanted-composer',label:'Enchanted Composer',codicon:'sparkle'}})
+      ctx.onDispose(()=>controller.dispose())
+      return
+    }
     ctx.register({id:'compose-inline',area:COMPOSER_AREAS.top,order:9,render:()=>jsx(ComposeInlinePanel,{controller})})
     ctx.register({id:'voice-transcript',area:COMPOSER_AREAS.top,order:10,render:()=>jsx(VoiceTranscriptPanel,{controller})})
     ctx.register({id:'voice-task-inspector',area:COMPOSER_AREAS.top,order:11,render:()=>jsx(VoiceTaskInspector,{controller})})

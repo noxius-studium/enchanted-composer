@@ -9,7 +9,7 @@ ROOT = Path(__file__).resolve().parents[1]
 ENTRY = ROOT / "desktop" / "plugin.js"
 SOURCE_DIR = ROOT / "desktop" / "src"
 PARTS = (
-    "00-runtime.js", "05-contracts.js", "07-icon-family.js", "10-owner-router.js", "20-live-transcript-buffer.js",
+    "00-runtime.js", "03-host-compat.js", "05-contracts.js", "07-icon-family.js", "10-owner-router.js", "20-live-transcript-buffer.js",
     "30-delegation-bridge.js", "40-prompt-model.js", "42-prompt-action-index.js", "45-draft-shelf.js", "47-brief-model.js", "50-composer-draft-adapter.js",
     "55-enhancement-review.js", "60-prompt-enhancer.js", "70-audio-device-controller.js", "72-voice-backend-contract.js",
     "74-enchanted-realtime-adapter.js", "76-composer-bridge-adapter.js", "78-speech-engine-catalog.js", "80-live-voice-session-controller.js",

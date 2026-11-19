@@ -40,7 +40,7 @@ function createController(ctx) {
   const enhancer=new PromptEnhancer({draftAdapter:draft,ownerRouter,api:ctx,review:new EnhancementReview()}),draftShelf=new DraftShelfStore(ctx,{draftAdapter:draft,ownerRouter}),settingsStore=new ComposerSettingsStore(ctx)
   const delegation=new DelegationBridge({api:ctx,transcript}),resolver=new VoiceBackendResolver({'enchanted-realtime':new RealtimeVoiceAdapter(ctx,audio),'enchanted-bridge':new ComposerBridgeBackendAdapter(ctx,audio)})
   const voice=new LiveVoiceSessionController({ctx,ownerRouter,transcript,delegation,audio,resolver})
-  const interaction=new VoiceInteractionMode({setMuted:muted=>voice.setMuted(muted)}),controller={ctx,ownerRouter,transcript,audio,draft,enhancer,draftShelf,delegation,voice,interaction,settingsStore,settings:{...DEFAULT_SETTINGS},settingsOwner:null,voiceCatalog:null,library:validateLibrary(ctx.storage.get('library',null)||createLibrary()),libraryListeners:new Set(),composerControls:normalizeComposerControlVisibility(ctx.storage.get(COMPOSER_CONTROL_STORAGE_KEY,null)),composerControlListeners:new Set(),railLayoutVersion:normalizeRailLayoutVersion(ctx.storage.get(RAIL_LAYOUT_STORAGE_KEY,0)),railLayoutListeners:new Set(),enhancementApplyMode:ctx.storage.get('enhancement-apply-mode','review')==='immediate'?'immediate':'review',enhancementApplyModeListeners:new Set(),historyOpen:false,historyListeners:new Set(),brief:validateBrief(ctx.storage.get('compose-active-brief',null)||createBrief()),briefListeners:new Set(),composeMode:['inline','expanded'].includes(ctx.storage.get('compose-mode','closed'))?ctx.storage.get('compose-mode','closed'):'closed',composeListeners:new Set(),reviewProposal:null,reviewListeners:new Set(),
+  const interaction=new VoiceInteractionMode({setMuted:muted=>voice.setMuted(muted)}),controller={ctx,ownerRouter,transcript,audio,draft,enhancer,draftShelf,delegation,voice,interaction,settingsStore,settings:{...DEFAULT_SETTINGS},settingsOwner:null,voiceCatalog:null,library:validateLibrary(ctx.storage.get('library',null)||createLibrary()),libraryListeners:new Set(),composerControls:normalizeComposerControlVisibility(ctx.storage.get(COMPOSER_CONTROL_STORAGE_KEY,null)),composerControlListeners:new Set(),railLayoutVersion:normalizeRailLayoutVersion(ctx.storage.get(RAIL_LAYOUT_STORAGE_KEY,0)),railLayoutListeners:new Set(),enhancementApplyMode:ctx.storage.get('enhancement-apply-mode','review')==='immediate'?'immediate':'review',enhancementApplyModeListeners:new Set(),historyOpen:false,historyListeners:new Set(),hostCompat:null,brief:validateBrief(ctx.storage.get('compose-active-brief',null)||createBrief()),briefListeners:new Set(),composeMode:['inline','expanded'].includes(ctx.storage.get('compose-mode','closed'))?ctx.storage.get('compose-mode','closed'):'closed',composeListeners:new Set(),reviewProposal:null,reviewListeners:new Set(),
     subscribeReviewProposal(listener){this.reviewListeners.add(listener);return()=>this.reviewListeners.delete(listener)},
     setReviewProposal(proposal){if(this.reviewProposal&&this.reviewProposal!==proposal)enhancer.discardProposal(this.reviewProposal);this.reviewProposal=proposal;for(const listener of this.reviewListeners)listener(proposal)},
     clearReviewProposal(proposal=this.reviewProposal){if(proposal!==this.reviewProposal)return false;this.reviewProposal=null;for(const listener of this.reviewListeners)listener(null);return true},
@@ -105,6 +105,17 @@ export default {
   id:PLUGIN_ID,name:'Enchanted Composer',description:'Live voice, reusable prompts, and dependable draft enhancement.',defaultEnabled:false,
   register(ctx){
     const controller=createController(ctx)
+    controller.hostCompat=hostCompatibility()
+    if(!controller.hostCompat.ok){
+      // A host update removed a public seam: degrade visibly and keep user data
+      // untouched. Never fall back to private APIs or DOM scraping.
+      ctx.register({id:'host-compat-notice',area:COMPOSER_AREAS.top,order:8,render:()=>jsx(HostCompatNotice,{controller})})
+      ctx.register({id:'route',area:ROUTES_AREA,order:25,data:{path:'/enchanted-composer'},render:()=>jsx(EnchantedComposerPage,{controller})})
+      ctx.register({id:'legacy-route',area:ROUTES_AREA,order:25,data:{path:'/composer-enhancements'},render:()=>jsx(EnchantedComposerPage,{controller})})
+      ctx.register({id:'sidebar-nav',area:SIDEBAR_NAV_AREA,order:25,data:{path:'/enchanted-composer',label:'Enchanted Composer',codicon:'sparkle'}})
+      ctx.onDispose(()=>controller.dispose())
+      return
+    }
     ctx.register({id:'compose-inline',area:COMPOSER_AREAS.top,order:9,render:()=>jsx(ComposeInlinePanel,{controller})})
     ctx.register({id:'voice-transcript',area:COMPOSER_AREAS.top,order:10,render:()=>jsx(VoiceTranscriptPanel,{controller})})
     ctx.register({id:'voice-task-inspector',area:COMPOSER_AREAS.top,order:11,render:()=>jsx(VoiceTaskInspector,{controller})})
