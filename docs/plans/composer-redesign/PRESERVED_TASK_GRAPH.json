@@ -1,0 +1,161 @@
+[
+  {
+    "key": "EC-R00",
+    "depends_on": [],
+    "idempotency_key": "enchanted-composer-redesign-v2:EC-R00"
+  },
+  {
+    "key": "EC-R01",
+    "depends_on": [
+      "EC-R00"
+    ],
+    "idempotency_key": "enchanted-composer-redesign-v2:EC-R01"
+  },
+  {
+    "key": "EC-R02",
+    "depends_on": [
+      "EC-R01"
+    ],
+    "idempotency_key": "enchanted-composer-redesign-v2:EC-R02"
+  },
+  {
+    "key": "EC-R03",
+    "depends_on": [
+      "EC-R02"
+    ],
+    "idempotency_key": "enchanted-composer-redesign-v2:EC-R03"
+  },
+  {
+    "key": "EC-R04",
+    "depends_on": [
+      "EC-R03"
+    ],
+    "idempotency_key": "enchanted-composer-redesign-v2:EC-R04"
+  },
+  {
+    "key": "EC-R05",
+    "depends_on": [
+      "EC-R04"
+    ],
+    "idempotency_key": "enchanted-composer-redesign-v2:EC-R05"
+  },
+  {
+    "key": "EC-R06",
+    "depends_on": [
+      "EC-R05"
+    ],
+    "idempotency_key": "enchanted-composer-redesign-v2:EC-R06"
+  },
+  {
+    "key": "EC-R07",
+    "depends_on": [
+      "EC-R06"
+    ],
+    "idempotency_key": "enchanted-composer-redesign-v2:EC-R07"
+  },
+  {
+    "key": "EC-R08",
+    "depends_on": [
+      "EC-R07"
+    ],
+    "idempotency_key": "enchanted-composer-redesign-v2:EC-R08"
+  },
+  {
+    "key": "EC-R09",
+    "depends_on": [
+      "EC-R08"
+    ],
+    "idempotency_key": "enchanted-composer-redesign-v2:EC-R09"
+  },
+  {
+    "key": "EC-R10",
+    "depends_on": [
+      "EC-R09"
+    ],
+    "idempotency_key": "enchanted-composer-redesign-v2:EC-R10"
+  },
+  {
+    "key": "EC-R11",
+    "depends_on": [
+      "EC-R10"
+    ],
+    "idempotency_key": "enchanted-composer-redesign-v2:EC-R11"
+  },
+  {
+    "key": "EC-R12",
+    "depends_on": [
+      "EC-R11"
+    ],
+    "idempotency_key": "enchanted-composer-redesign-v2:EC-R12"
+  },
+  {
+    "key": "EC-R13",
+    "depends_on": [
+      "EC-R12"
+    ],
+    "idempotency_key": "enchanted-composer-redesign-v2:EC-R13"
+  },
+  {
+    "key": "EC-R14",
+    "depends_on": [
+      "EC-R13"
+    ],
+    "idempotency_key": "enchanted-composer-redesign-v2:EC-R14"
+  },
+  {
+    "key": "EC-R15",
+    "depends_on": [
+      "EC-R14"
+    ],
+    "idempotency_key": "enchanted-composer-redesign-v2:EC-R15"
+  },
+  {
+    "key": "EC-R16",
+    "depends_on": [
+      "EC-R15"
+    ],
+    "idempotency_key": "enchanted-composer-redesign-v2:EC-R16"
+  },
+  {
+    "key": "EC-R17",
+    "depends_on": [
+      "EC-R16"
+    ],
+    "idempotency_key": "enchanted-composer-redesign-v2:EC-R17"
+  },
+  {
+    "key": "EC-R18",
+    "depends_on": [
+      "EC-R17"
+    ],
+    "idempotency_key": "enchanted-composer-redesign-v2:EC-R18"
+  },
+  {
+    "key": "EC-R19",
+    "depends_on": [
+      "EC-R18"
+    ],
+    "idempotency_key": "enchanted-composer-redesign-v2:EC-R19"
+  },
+  {
+    "key": "EC-R20",
+    "depends_on": [
+      "EC-R19"
+    ],
+    "idempotency_key": "enchanted-composer-redesign-v2:EC-R20"
+  },
+  {
+    "key": "EC-R21",
+    "depends_on": [
+      "EC-R20"
+    ],
+    "idempotency_key": "enchanted-composer-redesign-v2:EC-R21"
+  },
+  {
+    "key": "EC-R22",
+    "depends_on": [
+      "EC-R21"
+    ],
+    "idempotency_key": "enchanted-composer-redesign-v2:EC-R22"
+  }
+]

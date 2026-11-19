@@ -1,5 +1,11 @@
 # Enchanted Composer — redesign from the original Composer
 
+<!-- CURRENT_EXECUTION_RULES:BEGIN -->
+## Latest execution-policy precedence
+
+CURRENT_EXECUTION_POLICY.md, UPDATE_DURABILITY.md and SERVER_MIGRATION.md supersede older operational route/delegation/no-push/per-slice-permission/test-stack advice in this historical specification. Product scope, current owner decisions and genuine review gates remain intact. Implementation is CLOUD-only; all worker/subagent models are exactly qwen/qwen4-max:free; every scoped commit is pushed and remotely verified; continue authorized linked work through callbacks until done or actual owner review. Historical receipts remain historical evidence, not new test results.
+<!-- CURRENT_EXECUTION_RULES:END -->
+
 **Status: REVIEW DRAFT — not approved for implementation, installation, deletion, or Kanban dispatch.**
 
 **Requested deliverable:** one readable Markdown document specifying the product, every important interface surface, redesigned icons, substantial new workflows, and detailed future Kanban cards.

@@ -1,5 +1,11 @@
 # Durability — surviving Hermes host updates and host resets
 
+<!-- CURRENT_EXECUTION_RULES:BEGIN -->
+## Current operating policy
+
+Read [CURRENT_EXECUTION_POLICY.md](CURRENT_EXECUTION_POLICY.md), [UPDATE_DURABILITY.md](UPDATE_DURABILITY.md), [SERVER_MIGRATION.md](SERVER_MIGRATION.md) and [TASK_TRACKING.md](TASK_TRACKING.md) FIRST. These supersede older per-slice permission/no-push/routing clauses. Subagents are allowed ONLY on `qwen/qwen4-max:free`. Work runs on the cloud; no local application builds. Existing used graphs must be resumed/restored, not re-imported. Commit -> push -> verify remote SHA, continue via START/FINISH/BLOCKED/REVIEW callbacks until done or genuine owner review; preserve all actual gates.
+<!-- CURRENT_EXECUTION_RULES:END -->
+
 User requirement (2026-11-19): *"even if hermes updates our system should be durable, our systems should still work."* This document is the contract and the recovery procedure. `tests/desktop/host-durability.test.mjs` enforces it in CI.
 
 ## 1. Plugin durability across Hermes Desktop updates
@@ -14,17 +20,16 @@ User requirement (2026-11-19): *"even if hermes updates our system should be dur
 
 ## 2. Plan-state durability across host resets / new cloud hosts
 
-The **git repository is the source of truth**; the Kanban board is reconstructible.
+The **git repository preserves source and pushed receipts**; an already-used Kanban board must be restored with its actual private state, not recreated as fresh tasks. Read `CURRENT_EXECUTION_POLICY.md`, `UPDATE_DURABILITY.md` and `SERVER_MIGRATION.md` before using older recovery instructions below.
 
 1. **Everything material is committed and pushed**: handoff spec/manifest/card bodies, importer, slice source, evidence, receipts (local receipts are gitignored but their content — SHAs, checks, IDs — is duplicated into card metadata/comments, which live in the board DB and in the pushed commit history).
 2. **Board snapshot (recommended before risky host changes):**
    `hermes kanban boards export enchanted-composer-redesign` → portable `.tar.gz`; restore on any host with `hermes kanban boards import <archive>`.
-3. **Rebuild from the repo (no snapshot needed):**
-   - Clone `noxius-studium/enchanted-composer`, checkout `redesign/w1-original-composer` (baseline `feea09c…` ancestry verified by the importer).
-   - Dry-run: `python docs/plans/composer-redesign/import_kanban.py` (needs PyYAML; pure-python copy acceptable).
-   - Apply with discovered target values: `--board … --assignee <actual profile> --workspace <abs repo path> --profile-config <actual config> --confirm-target nonconformist-innovation --apply`.
-   - **Idempotency keys** (`enchanted-composer-redesign-v2:EC-R##`) make re-import safe against duplicates; the importer reads every card back (blocked status, pins, body hash, parent chain, zero runs) and writes a fresh receipt.
-   - Routing decisions are recorded in the importer comments, manifest, and each card's "Verified import binding" section — re-apply the same decision or obtain a new one; never change routing silently to make checks pass.
+3. **Existing-board recovery versus fresh bootstrap:**
+   - For migration/reset, restore the actual private board backup and verify task IDs, statuses, links, comments, runs and attachments. Discover actual new-host workspace/profile paths and rebind notification subscriptions; the supported transfer strips machine-local claims/subscriptions and excludes workspaces. Keep dispatch held until reconciliation is complete.
+   - **Do not re-import an already-used graph with `import_kanban.py --apply`.** That helper deliberately requires blocked, zero-run tasks; idempotency keys alone do not restore completion, run history or pending owner review. Missing board state is a real recovery blocker, not permission to replay all tasks.
+   - The repository importer remains available only for an explicitly authorized truly fresh board. Its default dry-run is safe integrity validation and needs only Python; applying requires the existing Hermes CLI/PyYAML and verified target values. It does not migrate an active board.
+   - Preserve recorded route decisions and scoped source/receipts. Resume existing unfinished tasks on `redesign/w1-original-composer` with exact `qwen/qwen4-max:free` main/subagents, required commit -> push -> remote-SHA verification and callbacks. Respect the existing EC-R05 human gate.
 4. **Slice continuity.** Each completed slice's commit SHA is recorded in its card metadata and finish receipt; the next slice starts from that exact commit. Never reset or replace a predecessor's commit. `git log` on the pushed branch is the authoritative work ledger.
 
 ## 3. What a Hermes update must never do to this system
@@ -37,13 +42,13 @@ The **git repository is the source of truth**; the Kanban board is reconstructib
 ## 4. Post-update verification checklist (run on the cloud checkout)
 
 ```sh
-node --test tests/desktop/*.test.mjs tests/dashboard/*.test.mjs
-node scripts/verify_desktop.mjs desktop/plugin.js
-uv run python scripts/build_desktop.py --check
-uv run python scripts/build_dashboard.py --check
-uv run python -m pytest -q
-uv run python -m ruff check dashboard tests scripts
-python docs/plans/composer-redesign/import_kanban.py   # dry-run integrity
+# Handoff integrity helpers only; run on the CLOUD checkout.
+python docs/plans/composer-redesign/import_kanban.py
+python docs/plans/composer-redesign/test_import_kanban.py
+python docs/plans/composer-redesign/test_execution_policy.py
+# Product checks must remain a small serial risk-focused set using existing tools,
+# subject to the actual build-only/resource permission. No local app builds,
+# Docker, broad automatic test matrix, large installs or implied live acceptance.
 ```
 
 Then open Settings ▸ Account & usage ▸ Host compatibility on the live desktop and Re-check. Any missing critical seam = report the exact seam, keep the plugin degraded-but-safe, and request the specific host change — do not invent a workaround.

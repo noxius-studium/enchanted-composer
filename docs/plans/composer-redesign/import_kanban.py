@@ -33,8 +33,29 @@ def safe_path(root,relative):
         raise ValueError('Unsafe manifest path: '+relative)
     return p
 
+def validate_execution_policy(data,root):
+    if data.get('worker_model')!='qwen/qwen4-max:free' or data.get('delegation_model')!='qwen/qwen4-max:free' or data.get('delegation_allowed') is not True:
+        raise ValueError('Wrong main/subagent model policy')
+    if not all(data.get('git_policy',{}).get(k) is True for k in ('commit_each_slice','push_each_commit','verify_remote_sha','continue_until_done_or_user_review')):
+        raise ValueError('Missing commit/push/remote-verification/continuation rule')
+    if data.get('callback_policy')!=['START','FINISH','BLOCKED','REVIEW'] or data.get('local_application_builds_allowed') is not False:
+        raise ValueError('Missing callback or cloud-only policy')
+    if not data.get('resume_existing_tasks') or not data.get('durability_policy',{}).get('required'):
+        raise ValueError('Missing task-state recovery/durability contract')
+    expected=json.loads((root/'PRESERVED_TASK_GRAPH.json').read_text(encoding='utf-8'))
+    actual=[{k:c[k] for k in ('key','depends_on','idempotency_key')} for c in data['cards']]
+    if expected!=actual:
+        raise ValueError('Stable task keys/links/idempotency changed')
+    for item in data['policy_files']:
+        if digest(safe_path(root,item['file']).read_bytes())!=item['sha256']:
+            raise ValueError('Operational policy hash mismatch: '+item['file'])
+    for card in data['cards']:
+        if not all(card.get(k) is True for k in ('per_slice_commit_required','push_after_every_commit_required','verify_remote_sha_required','auto_continue_until_done_or_review','update_durability_required')):
+            raise ValueError('Missing per-card execution/durability rule: '+card['key'])
+
 def validate(root=ROOT):
     manifest=json.loads((root/'manifest.json').read_text(encoding='utf-8'))
+    validate_execution_policy(manifest,root)
     if manifest['target_connection']!=TARGET or manifest['start_workers'] is not False:
         raise ValueError('Wrong target or unsafe execution setting')
     if digest(safe_path(root,manifest['specification']).read_bytes())!=manifest['specification_sha256']:
@@ -105,7 +126,10 @@ def check_profile(path):
     # (orchestrator route); workers are pinned per task to PROVIDER/MODEL.
     if not isinstance(route,dict) or route.get('provider')!=PROVIDER or route.get('default')!=ORCHESTRATOR_MODEL:
         raise ValueError('Cloud profile route differs from the verified routing decision; obtain a new routing decision instead of changing it')
-    for obj in (config,route):
+    delegation=config.get('delegation') or {}
+    if delegation.get('model') not in (None,'',MODEL) or delegation.get('provider') not in (None,'',PROVIDER):
+        raise ValueError('Subagents must use the exact approved Qwen/provider route')
+    for obj in (config,route,delegation):
         if any(obj.get(k) for k in ('fallback','fallbacks','fallback_model','fallback_models','fallback_chain')):
             raise ValueError('A fallback route is configured; keep cards blocked and resolve explicitly')
     if config.get('moa',{}).get('enabled'):
@@ -158,7 +182,7 @@ def main(argv=None):
     save_receipt()
     for card in manifest['cards']:
         parents=[resolved[key] for key in card['depends_on']]
-        binding=f'\n\n## Verified import binding\nCloud connection: {TARGET}\nActual cloud assignee: {args.assignee}\nBoard: {args.board}\nAbsolute cloud workspace: {args.workspace}\nInitial state: BLOCKED; no execution authorized.\nRouting decision (user, 2026-11-19): the assignee is this cloud profile itself; delegation to the agent\'s own runs is authorized, superseding the no-delegation clause for self-delegation only. Codex, external delegated agents, MoA/swarm/reviewer agents and fallback remain forbidden. Worker route pinned per task: {PROVIDER} / {MODEL} — final user decision 2026-11-19 ("leave it on qwen/qwen4-max:free"), superseding the embedded tencent/hy4-flash:free worker route.\n'
+        binding=f'\n\n## Verified import binding\nCloud connection: {TARGET}\nActual cloud assignee: {args.assignee}\nBoard: {args.board}\nAbsolute cloud workspace: {args.workspace}\nInitial state: BLOCKED; no execution authorized.\nRouting decision (user, 2026-11-19): the assignee is this cloud profile itself; delegation to the agent\'s own runs is authorized, superseding the no-delegation clause for self-delegation only. Delegated work/review is permitted only when every child uses the exact pinned qwen/qwen4-max:free model; Codex, alternate-model/provider fallback and unapproved MoA remain forbidden. Worker route pinned per task: {PROVIDER} / {MODEL} — final user decision 2026-11-19 ("leave it on qwen/qwen4-max:free"), superseding the embedded tencent/hy4-flash:free worker route.\n'
         body=safe_path(ROOT,card['body_file']).read_text(encoding='utf-8')+binding
         body_path=staging/(card['key']+'.md')
         body_path.write_bytes(body.encode())
