@@ -1,0 +1,530 @@
+{
+  "schema_version": 1,
+  "plan_id": "enchanted-composer-redesign-v2",
+  "target_connection": "nonconformist-innovation",
+  "source_delivery": "GitHub repository; no local source transfer required",
+  "baseline_commit": "feea09c5f3d6eac8d1afcd7e158a680d9b7c75b0",
+  "specification": "SPECIFICATION.md",
+  "specification_sha256": "91302f8fee56cc19bcbba023e0980efc85616a92f2b3fe857d6425075abaff00",
+  "assignee_binding": "required: actual verified cloud profile; do not assume the local nous-agent exists remotely",
+  "provider": "nous",
+  "model": "tencent/hy4-flash:free",
+  "cards": [
+    {
+      "key": "EC-R00",
+      "title": "Preserve, retire the rejected build, and prepare the approved original baseline",
+      "body_file": "kanban/EC-R00.md",
+      "body_sha256": "567e952a390c816f61badbf8e176300f28f11768b6fdd7cef46e71c38d260773",
+      "depends_on": [],
+      "initial_status": "blocked",
+      "priority": 100,
+      "model": "tencent/hy4-flash:free",
+      "provider": "nous",
+      "goal_mode": false,
+      "completion_contract": "local-only",
+      "max_runtime": "1h",
+      "max_retries": 1,
+      "idempotency_key": "enchanted-composer-redesign-v2:EC-R00",
+      "feature_ids": []
+    },
+    {
+      "key": "EC-R01",
+      "title": "Interaction inventory, visual brief, and host-seam confirmation",
+      "body_file": "kanban/EC-R01.md",
+      "body_sha256": "5da5eea14ecb75e4dff8392ea67a44fc4a373dde64a91a14b1bf7bd0d4d13d60",
+      "depends_on": [
+        "EC-R00"
+      ],
+      "initial_status": "blocked",
+      "priority": 99,
+      "model": "tencent/hy4-flash:free",
+      "provider": "nous",
+      "goal_mode": false,
+      "completion_contract": "local-only",
+      "max_runtime": "1h",
+      "max_retries": 1,
+      "idempotency_key": "enchanted-composer-redesign-v2:EC-R01",
+      "feature_ids": []
+    },
+    {
+      "key": "EC-R02",
+      "title": "Redesign the icon family and the native action rail",
+      "body_file": "kanban/EC-R02.md",
+      "body_sha256": "f93638eda4ac2adb47fa53cedd3d674eea8898d62965bae253cc4a25d5bb5616",
+      "depends_on": [
+        "EC-R01"
+      ],
+      "initial_status": "blocked",
+      "priority": 98,
+      "model": "tencent/hy4-flash:free",
+      "provider": "nous",
+      "goal_mode": false,
+      "completion_contract": "local-only",
+      "max_runtime": "1h",
+      "max_retries": 1,
+      "idempotency_key": "enchanted-composer-redesign-v2:EC-R02",
+      "feature_ids": [
+        "F21"
+      ]
+    },
+    {
+      "key": "EC-R03",
+      "title": "Build Improve, selective review, and safe enhancement history",
+      "body_file": "kanban/EC-R03.md",
+      "body_sha256": "f711f0eb9c6155bfdaeff64eec20c5c6e239121aa269d828ea46f7ad335f36f0",
+      "depends_on": [
+        "EC-R02"
+      ],
+      "initial_status": "blocked",
+      "priority": 97,
+      "model": "tencent/hy4-flash:free",
+      "provider": "nous",
+      "goal_mode": false,
+      "completion_contract": "local-only",
+      "max_runtime": "1h",
+      "max_retries": 1,
+      "idempotency_key": "enchanted-composer-redesign-v2:EC-R03",
+      "feature_ids": []
+    },
+    {
+      "key": "EC-R04",
+      "title": "Build one complete writing-centred Compose journey",
+      "body_file": "kanban/EC-R04.md",
+      "body_sha256": "64db7a6c4fc51af1dab267619cba1d7f5e8231fffa5d914ff9fef58fa39b78cc",
+      "depends_on": [
+        "EC-R03"
+      ],
+      "initial_status": "blocked",
+      "priority": 96,
+      "model": "tencent/hy4-flash:free",
+      "provider": "nous",
+      "goal_mode": false,
+      "completion_contract": "local-only",
+      "max_runtime": "1h",
+      "max_retries": 1,
+      "idempotency_key": "enchanted-composer-redesign-v2:EC-R04",
+      "feature_ids": []
+    },
+    {
+      "key": "EC-R05",
+      "title": "W1 visual review and correction gate",
+      "body_file": "kanban/EC-R05.md",
+      "body_sha256": "a35f3e8dc935dd55630ab4314ace1e2580e0434171a02a5a250c1c39c0aab47e",
+      "depends_on": [
+        "EC-R04"
+      ],
+      "initial_status": "blocked",
+      "priority": 95,
+      "model": "tencent/hy4-flash:free",
+      "provider": "nous",
+      "goal_mode": false,
+      "completion_contract": "local-only",
+      "max_runtime": "1h",
+      "max_retries": 1,
+      "idempotency_key": "enchanted-composer-redesign-v2:EC-R05",
+      "feature_ids": []
+    },
+    {
+      "key": "EC-R06",
+      "title": "Complete library browsing, editing, recipes, and collection management",
+      "body_file": "kanban/EC-R06.md",
+      "body_sha256": "57741f7c91ec352ef36acdb5594ce634c212b628f7e54ae301ca4f49b719c497",
+      "depends_on": [
+        "EC-R05"
+      ],
+      "initial_status": "blocked",
+      "priority": 94,
+      "model": "tencent/hy4-flash:free",
+      "provider": "nous",
+      "goal_mode": false,
+      "completion_contract": "local-only",
+      "max_runtime": "1h",
+      "max_retries": 1,
+      "idempotency_key": "enchanted-composer-redesign-v2:EC-R06",
+      "feature_ids": [
+        "F07"
+      ]
+    },
+    {
+      "key": "EC-R07",
+      "title": "Complete saved drafts, versions, branches, and resume",
+      "body_file": "kanban/EC-R07.md",
+      "body_sha256": "e818407aae3e5e20f35907d1956afcfb1d9a1b5cd7ef72401300eed948551338",
+      "depends_on": [
+        "EC-R06"
+      ],
+      "initial_status": "blocked",
+      "priority": 93,
+      "model": "tencent/hy4-flash:free",
+      "provider": "nous",
+      "goal_mode": false,
+      "completion_contract": "local-only",
+      "max_runtime": "1h",
+      "max_retries": 1,
+      "idempotency_key": "enchanted-composer-redesign-v2:EC-R07",
+      "feature_ids": [
+        "F04",
+        "F16"
+      ]
+    },
+    {
+      "key": "EC-R08",
+      "title": "Replace the settings shell and redesign all existing configuration controls",
+      "body_file": "kanban/EC-R08.md",
+      "body_sha256": "e2394c53bd92b56c71b51dbbd3e5e0a02f76d73bd72d2076fec069c46abe92f8",
+      "depends_on": [
+        "EC-R07"
+      ],
+      "initial_status": "blocked",
+      "priority": 92,
+      "model": "tencent/hy4-flash:free",
+      "provider": "nous",
+      "goal_mode": false,
+      "completion_contract": "local-only",
+      "max_runtime": "1h",
+      "max_retries": 1,
+      "idempotency_key": "enchanted-composer-redesign-v2:EC-R08",
+      "feature_ids": []
+    },
+    {
+      "key": "EC-R09",
+      "title": "Redesign active voice, captions, task steering, and audio devices",
+      "body_file": "kanban/EC-R09.md",
+      "body_sha256": "f023c6a453fd5e14e5378eccc38ec34431b57dec1a57b7e6129508f2e539bcff",
+      "depends_on": [
+        "EC-R08"
+      ],
+      "initial_status": "blocked",
+      "priority": 91,
+      "model": "tencent/hy4-flash:free",
+      "provider": "nous",
+      "goal_mode": false,
+      "completion_contract": "local-only",
+      "max_runtime": "1h",
+      "max_retries": 1,
+      "idempotency_key": "enchanted-composer-redesign-v2:EC-R09",
+      "feature_ids": []
+    },
+    {
+      "key": "EC-R10",
+      "title": "Finish cross-surface keyboard, theme, narrow layout, and continuity",
+      "body_file": "kanban/EC-R10.md",
+      "body_sha256": "80fcc38a6166b5a0c9cdaeba648e325d00f92663f95c2819ad867d8b475dd311",
+      "depends_on": [
+        "EC-R09"
+      ],
+      "initial_status": "blocked",
+      "priority": 90,
+      "model": "tencent/hy4-flash:free",
+      "provider": "nous",
+      "goal_mode": false,
+      "completion_contract": "local-only",
+      "max_runtime": "1h",
+      "max_retries": 1,
+      "idempotency_key": "enchanted-composer-redesign-v2:EC-R10",
+      "feature_ids": []
+    },
+    {
+      "key": "EC-R11",
+      "title": "Context Lens, explicit capture, budget, and evidence links",
+      "body_file": "kanban/EC-R11.md",
+      "body_sha256": "96c7df813bfb73e6287c26d9bab87cfdf20e60e350e2cd04895d3beed99055d4",
+      "depends_on": [
+        "EC-R10"
+      ],
+      "initial_status": "blocked",
+      "priority": 89,
+      "model": "tencent/hy4-flash:free",
+      "provider": "nous",
+      "goal_mode": false,
+      "completion_contract": "local-only",
+      "max_runtime": "1h",
+      "max_retries": 1,
+      "idempotency_key": "enchanted-composer-redesign-v2:EC-R11",
+      "feature_ids": [
+        "F03",
+        "F19"
+      ]
+    },
+    {
+      "key": "EC-R12",
+      "title": "Intent Map, exact locks, assumptions, and Prompt Debugger",
+      "body_file": "kanban/EC-R12.md",
+      "body_sha256": "a5c39579a711ad49a0394a3818bfdc0c6b88b807a6d0fd769aede8722bb7e88e",
+      "depends_on": [
+        "EC-R11"
+      ],
+      "initial_status": "blocked",
+      "priority": 88,
+      "model": "tencent/hy4-flash:free",
+      "provider": "nous",
+      "goal_mode": false,
+      "completion_contract": "local-only",
+      "max_runtime": "1h",
+      "max_retries": 1,
+      "idempotency_key": "enchanted-composer-redesign-v2:EC-R12",
+      "feature_ids": [
+        "F01"
+      ]
+    },
+    {
+      "key": "EC-R13",
+      "title": "Output contracts, real result inspection, and targeted answer repair",
+      "body_file": "kanban/EC-R13.md",
+      "body_sha256": "4ea63c202fd48af69312f62a6ab3bd395840aa9294553ee859a707c9b3b72faa",
+      "depends_on": [
+        "EC-R12"
+      ],
+      "initial_status": "blocked",
+      "priority": 87,
+      "model": "tencent/hy4-flash:free",
+      "provider": "nous",
+      "goal_mode": false,
+      "completion_contract": "local-only",
+      "max_runtime": "1h",
+      "max_retries": 1,
+      "idempotency_key": "enchanted-composer-redesign-v2:EC-R13",
+      "feature_ids": [
+        "F08",
+        "F09"
+      ]
+    },
+    {
+      "key": "EC-R14",
+      "title": "Reference-to-spec visual brief tool",
+      "body_file": "kanban/EC-R14.md",
+      "body_sha256": "d94ae7fbcf6dcbd8c909046055a7768f41df4589c17ef3a684771790304e4069",
+      "depends_on": [
+        "EC-R13"
+      ],
+      "initial_status": "blocked",
+      "priority": 86,
+      "model": "tencent/hy4-flash:free",
+      "provider": "nous",
+      "goal_mode": false,
+      "completion_contract": "local-only",
+      "max_runtime": "1h",
+      "max_retries": 1,
+      "idempotency_key": "enchanted-composer-redesign-v2:EC-R14",
+      "feature_ids": [
+        "F02"
+      ]
+    },
+    {
+      "key": "EC-R15",
+      "title": "Handoff compiler, delivery formats, attachment manifest, and readiness",
+      "body_file": "kanban/EC-R15.md",
+      "body_sha256": "0aee21e67b9d047ededca0b79040c7e8ea546af9be7cd054bf1461cbba8e1378",
+      "depends_on": [
+        "EC-R14"
+      ],
+      "initial_status": "blocked",
+      "priority": 85,
+      "model": "tencent/hy4-flash:free",
+      "provider": "nous",
+      "goal_mode": false,
+      "completion_contract": "local-only",
+      "max_runtime": "1h",
+      "max_retries": 1,
+      "idempotency_key": "enchanted-composer-redesign-v2:EC-R15",
+      "feature_ids": [
+        "F06",
+        "F19",
+        "F20"
+      ]
+    },
+    {
+      "key": "EC-R16",
+      "title": "Versioned blocks, styles, context packs, and project kits",
+      "body_file": "kanban/EC-R16.md",
+      "body_sha256": "fba4958dac2a859515abcaf73dda44d546722e3f24fbe4a4951593f82952fdf4",
+      "depends_on": [
+        "EC-R15"
+      ],
+      "initial_status": "blocked",
+      "priority": 84,
+      "model": "tencent/hy4-flash:free",
+      "provider": "nous",
+      "goal_mode": false,
+      "completion_contract": "local-only",
+      "max_runtime": "1h",
+      "max_retries": 1,
+      "idempotency_key": "enchanted-composer-redesign-v2:EC-R16",
+      "feature_ids": [
+        "F07",
+        "F15"
+      ]
+    },
+    {
+      "key": "EC-R17",
+      "title": "Destination dialect preview and capability-aware helper plans",
+      "body_file": "kanban/EC-R17.md",
+      "body_sha256": "f1643cd676203b993d7153a1740bd28bb6945ab52d4b49623fd2a68281cda7fe",
+      "depends_on": [
+        "EC-R16"
+      ],
+      "initial_status": "blocked",
+      "priority": 83,
+      "model": "tencent/hy4-flash:free",
+      "provider": "nous",
+      "goal_mode": false,
+      "completion_contract": "local-only",
+      "max_runtime": "1h",
+      "max_retries": 1,
+      "idempotency_key": "enchanted-composer-redesign-v2:EC-R17",
+      "feature_ids": [
+        "F05"
+      ]
+    },
+    {
+      "key": "EC-R18",
+      "title": "Workflow and role-specific agent handoff planning",
+      "body_file": "kanban/EC-R18.md",
+      "body_sha256": "db7a396327d6da6c2989cfedc1f8417b5357204d40ce3eeeac08ad18483238e5",
+      "depends_on": [
+        "EC-R17"
+      ],
+      "initial_status": "blocked",
+      "priority": 82,
+      "model": "tencent/hy4-flash:free",
+      "provider": "nous",
+      "goal_mode": false,
+      "completion_contract": "local-only",
+      "max_runtime": "1h",
+      "max_retries": 1,
+      "idempotency_key": "enchanted-composer-redesign-v2:EC-R18",
+      "feature_ids": [
+        "F10",
+        "F11"
+      ]
+    },
+    {
+      "key": "EC-R19",
+      "title": "Bounded batch execution and controlled workflow runner",
+      "body_file": "kanban/EC-R19.md",
+      "body_sha256": "e54c75669453a0f522cb912356029a256ee8aba021f6046d85be263488d31b90",
+      "depends_on": [
+        "EC-R18"
+      ],
+      "initial_status": "blocked",
+      "priority": 81,
+      "model": "tencent/hy4-flash:free",
+      "provider": "nous",
+      "goal_mode": false,
+      "completion_contract": "local-only",
+      "max_runtime": "1h",
+      "max_retries": 1,
+      "idempotency_key": "enchanted-composer-redesign-v2:EC-R19",
+      "feature_ids": [
+        "F10",
+        "F12"
+      ]
+    },
+    {
+      "key": "EC-R20",
+      "title": "Compare and evidence-linked experiment notebook",
+      "body_file": "kanban/EC-R20.md",
+      "body_sha256": "b120e6acba4f9677aed22787874f1b2ea28f5ec30f4430d51545197f5dee7aff",
+      "depends_on": [
+        "EC-R19"
+      ],
+      "initial_status": "blocked",
+      "priority": 80,
+      "model": "tencent/hy4-flash:free",
+      "provider": "nous",
+      "goal_mode": false,
+      "completion_contract": "local-only",
+      "max_runtime": "1h",
+      "max_retries": 1,
+      "idempotency_key": "enchanted-composer-redesign-v2:EC-R20",
+      "feature_ids": [
+        "F13"
+      ]
+    },
+    {
+      "key": "EC-R21",
+      "title": "Voice-to-brief, protected localization, and reviewed learning",
+      "body_file": "kanban/EC-R21.md",
+      "body_sha256": "f9662f71e1ff76ef10490e3ad55903e207331c2751b590db562821b472ec86a1",
+      "depends_on": [
+        "EC-R20"
+      ],
+      "initial_status": "blocked",
+      "priority": 79,
+      "model": "tencent/hy4-flash:free",
+      "provider": "nous",
+      "goal_mode": false,
+      "completion_contract": "local-only",
+      "max_runtime": "1h",
+      "max_retries": 1,
+      "idempotency_key": "enchanted-composer-redesign-v2:EC-R21",
+      "feature_ids": [
+        "F14",
+        "F17",
+        "F18"
+      ]
+    },
+    {
+      "key": "EC-R22",
+      "title": "Whole-product parity, visual finish, packaging, and acceptance handoff",
+      "body_file": "kanban/EC-R22.md",
+      "body_sha256": "13f2668d08938d044bd5f0a6122b1b465d8d7204b596c7e271e89d4b436dbc24",
+      "depends_on": [
+        "EC-R21"
+      ],
+      "initial_status": "blocked",
+      "priority": 78,
+      "model": "tencent/hy4-flash:free",
+      "provider": "nous",
+      "goal_mode": false,
+      "completion_contract": "local-only",
+      "max_runtime": "1h",
+      "max_retries": 1,
+      "idempotency_key": "enchanted-composer-redesign-v2:EC-R22",
+      "feature_ids": [
+        "F01",
+        "F02",
+        "F03",
+        "F04",
+        "F05",
+        "F06",
+        "F07",
+        "F08",
+        "F09",
+        "F10",
+        "F11",
+        "F12",
+        "F13",
+        "F14",
+        "F15",
+        "F16",
+        "F17",
+        "F18",
+        "F19",
+        "F20",
+        "F21"
+      ]
+    }
+  ],
+  "references": [
+    {
+      "file": "references/prompt-studio-settings.png",
+      "sha256": "bad7037fc94c97ed166697f387d859e64e7e598de01a30728d6859a242a61190"
+    },
+    {
+      "file": "references/prompt-studio-outcomes.png",
+      "sha256": "6a5a2bf6b2e7748eb4c2d4d4f3c1e449f11cc51d2ba85026e24d84901cf13a90"
+    },
+    {
+      "file": "references/prompt-studio-inline.png",
+      "sha256": "4cad4bedf22c17d2395815a5b029c2a01fe148086bbbaa82d4a687c02955e270"
+    },
+    {
+      "file": "references/original-composer-actions.png",
+      "sha256": "8c0d3cf23bdfbe04f41e5cdfa0235d898adc7472eb6244bfa101c6f679e82255"
+    }
+  ],
+  "start_workers": false,
+  "preserve_existing_board": true,
+  "human_gate": "EC-R05 plus user authorization before any implementation"
+}
