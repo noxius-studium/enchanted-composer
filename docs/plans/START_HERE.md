@@ -1,6 +1,6 @@
 # Enchanted Composer — NEW redesign handoff
 
-Read [`composer-redesign/KANBAN.md`](composer-redesign/KANBAN.md) first, then [`SPECIFICATION.md`](composer-redesign/SPECIFICATION.md).
+Read [`CURRENT_EXECUTION_POLICY.md`](composer-redesign/CURRENT_EXECUTION_POLICY.md), [`UPDATE_DURABILITY.md`](composer-redesign/UPDATE_DURABILITY.md), and [`SERVER_MIGRATION.md`](composer-redesign/SERVER_MIGRATION.md) FIRST, then [`KANBAN.md`](composer-redesign/KANBAN.md) and [`SPECIFICATION.md`](composer-redesign/SPECIFICATION.md). Existing used tasks must be resumed, not re-imported. Continue authorized waves via callbacks until done or real owner review; commit, push and verify each scoped checkpoint. Main and every allowed subagent use exactly `qwen/qwen4-max:free`. No local application builds.
 
 - Branch: `docs/composer-redesign-handoff`.
 - Source baseline: `feea09c5f3d6eac8d1afcd7e158a680d9b7c75b0` — the preserved ORIGINAL Composer, not the rejected workbench.

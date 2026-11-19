@@ -1,0 +1,136 @@
+{
+  "title": "Portable existing-task callback envelope",
+  "type": "object",
+  "required": [
+    "event",
+    "plan_key",
+    "task_id",
+    "board",
+    "run_id",
+    "repository",
+    "workspace",
+    "branch",
+    "profile",
+    "provider",
+    "model",
+    "source_commit",
+    "mode",
+    "scope",
+    "evidence"
+  ],
+  "properties": {
+    "event": {
+      "enum": [
+        "START",
+        "FINISH",
+        "BLOCKED",
+        "REVIEW"
+      ]
+    },
+    "plan_key": {
+      "type": "string"
+    },
+    "task_id": {
+      "type": "string"
+    },
+    "board": {
+      "type": "string"
+    },
+    "run_id": {
+      "type": [
+        "string",
+        "integer"
+      ]
+    },
+    "repository": {
+      "type": "string"
+    },
+    "workspace": {
+      "type": "string"
+    },
+    "branch": {
+      "type": "string"
+    },
+    "profile": {
+      "type": "string"
+    },
+    "provider": {
+      "type": "string"
+    },
+    "model": {
+      "const": "qwen/qwen4-max:free"
+    },
+    "delegation_models": {
+      "type": "array",
+      "items": {
+        "const": "qwen/qwen4-max:free"
+      }
+    },
+    "source_commit": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "mode": {
+      "enum": [
+        "build-only",
+        "source-checks",
+        "fixture-tested",
+        "live-tested",
+        "review-pending"
+      ]
+    },
+    "scope": {
+      "type": "string"
+    },
+    "evidence": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "commit": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "remote_sha": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "pushed_branch": {
+      "type": "string"
+    },
+    "next_task_or_review": {
+      "type": "string"
+    },
+    "unverified_acceptance": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "event": {
+            "const": "FINISH"
+          }
+        },
+        "required": [
+          "event"
+        ]
+      },
+      "then": {
+        "required": [
+          "commit",
+          "remote_sha",
+          "pushed_branch",
+          "next_task_or_review",
+          "unverified_acceptance"
+        ]
+      }
+    }
+  ],
+  "description": "Record real values only, verify remote_sha equals commit before FINISH; use an existing task and rebind notifications on server migration. Schema shape is not delivery or live-acceptance proof."
+}

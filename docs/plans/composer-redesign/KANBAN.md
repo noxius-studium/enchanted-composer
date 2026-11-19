@@ -1,5 +1,11 @@
 # Enchanted Composer — detailed cloud Kanban handoff
 
+<!-- CURRENT_EXECUTION_RULES:BEGIN -->
+## Current operating policy
+
+Read [CURRENT_EXECUTION_POLICY.md](CURRENT_EXECUTION_POLICY.md), [UPDATE_DURABILITY.md](UPDATE_DURABILITY.md), [SERVER_MIGRATION.md](SERVER_MIGRATION.md) and [TASK_TRACKING.md](TASK_TRACKING.md) FIRST. These supersede older per-slice permission/no-push/routing clauses. Subagents are allowed ONLY on `qwen/qwen4-max:free`. Work runs on the cloud; no local application builds. Existing used graphs must be resumed/restored, not re-imported. Commit -> push -> verify remote SHA, continue via START/FINISH/BLOCKED/REVIEW callbacks until done or genuine owner review; preserve all actual gates.
+<!-- CURRENT_EXECUTION_RULES:END -->
+
 **Destination:** `nonconformist-innovation` · **Source:** the GitHub repository · **Status:** plan-only, blocked by default.
 
 This is the NEW redesign plan, not the earlier 21 completed workbench cards. Do not reopen or replay those old cards, clear an existing board, or build on the rejected UI.
@@ -10,9 +16,9 @@ This is the NEW redesign plan, not the earlier 21 completed workbench cards. Do 
 - Each card below is self-contained: its slice, actual embedded UI rules, theme/state contracts, write areas, concrete acceptance, callback protocol and permission boundaries are inside its body.
 - `manifest.json` contains the exact ordering, file hashes, task pins and idempotency keys.
 - The importer defaults to a local dry-run. `--apply` creates every card BLOCKED and reads every exact target back. It never dispatches/unblocks workers.
-- Once a slice is separately authorized to run, it must create its own scoped local commit after required checks and record the actual SHA before completion. No automatic implementation pushes, no empty commits, no unrelated staged work.
+- Once its chain/wave is authorized, it must create its own scoped local commit after required checks and record the actual SHA before completion. Push every scoped implementation commit and verify its exact remote SHA, no empty commits, no unrelated staged work.
 - Importing does not approve the design or implementation. A cloud assignee must be explicitly verified. The old local `nous-agent` name is not automatically a cloud profile.
-- User-approved worker route remains `nous / tencent/hy4-flash:free`, no Codex, no delegation, no fallback. If that conflicts with the actual cloud agent route, keep the plan blocked and ask for the routing decision rather than substitute.
+- Current worker route is `verified cloud provider / qwen/qwen4-max:free`, no Codex, Qwen-only delegation, no fallback. If that conflicts with the actual cloud agent route, keep the plan blocked and ask for the routing decision rather than substitute.
 - Code arrives through GitHub. Windows-only paths in historical evidence must not be used as cloud workspace paths.
 
 ## GitHub readiness
