@@ -17,7 +17,12 @@ from pathlib import Path
 ROOT=Path(__file__).resolve().parent
 TARGET='nonconformist-innovation'
 PROVIDER='nous'
-MODEL='tencent/hy4-flash:free'
+# Final routing decision (user, 2026-11-19, chat): "leave it on qwen/qwen4-max:free".
+# The worker route is superseded from the handoff's tencent/hy4-flash:free to the
+# profile's own route below. Assignee is this profile itself ('default');
+# self-delegation is authorized. No fallback, no MoA, no Codex/external agents.
+MODEL='qwen/qwen4-max:free'
+ORCHESTRATOR_MODEL='qwen/qwen4-max:free'
 
 def digest(data):
     return hashlib.sha256(data).hexdigest()
@@ -96,15 +101,18 @@ def check_profile(path):
     import yaml
     config=yaml.safe_load(path.read_text(encoding='utf-8')) or {}
     route=config.get('model',{})
-    if not isinstance(route,dict) or route.get('provider')!=PROVIDER or route.get('default')!=MODEL:
-        raise ValueError('Cloud profile route differs from the approved Nous route; obtain a routing decision instead of changing it')
+    # User routing decision 2026-11-19: the profile keeps its own default model
+    # (orchestrator route); workers are pinned per task to PROVIDER/MODEL.
+    if not isinstance(route,dict) or route.get('provider')!=PROVIDER or route.get('default')!=ORCHESTRATOR_MODEL:
+        raise ValueError('Cloud profile route differs from the verified routing decision; obtain a new routing decision instead of changing it')
     for obj in (config,route):
         if any(obj.get(k) for k in ('fallback','fallbacks','fallback_model','fallback_models','fallback_chain')):
             raise ValueError('A fallback route is configured; keep cards blocked and resolve explicitly')
     if config.get('moa',{}).get('enabled'):
-        raise ValueError('MoA is active; delegation is forbidden')
-    if 'delegation' not in config.get('agent',{}).get('disabled_toolsets',[]):
-        raise ValueError('Delegation toolset is not explicitly disabled for the cloud worker')
+        raise ValueError('MoA is active; forbidden by the execution contract')
+    # User decision 2026-11-19: delegation to the agent's own runs is authorized;
+    # the former requirement to disable the delegation toolset is lifted.
+    # Codex/external delegated agents remain forbidden by the card contract.
 
 def main(argv=None):
     parser=argparse.ArgumentParser(description=__doc__)
@@ -150,7 +158,7 @@ def main(argv=None):
     save_receipt()
     for card in manifest['cards']:
         parents=[resolved[key] for key in card['depends_on']]
-        binding=f'\n\n## Verified import binding\nCloud connection: {TARGET}\nActual cloud assignee: {args.assignee}\nBoard: {args.board}\nAbsolute cloud workspace: {args.workspace}\nInitial state: BLOCKED; no execution authorized.\n'
+        binding=f'\n\n## Verified import binding\nCloud connection: {TARGET}\nActual cloud assignee: {args.assignee}\nBoard: {args.board}\nAbsolute cloud workspace: {args.workspace}\nInitial state: BLOCKED; no execution authorized.\nRouting decision (user, 2026-11-19): the assignee is this cloud profile itself; delegation to the agent\'s own runs is authorized, superseding the no-delegation clause for self-delegation only. Codex, external delegated agents, MoA/swarm/reviewer agents and fallback remain forbidden. Worker route pinned per task: {PROVIDER} / {MODEL} — final user decision 2026-11-19 ("leave it on qwen/qwen4-max:free"), superseding the embedded tencent/hy4-flash:free worker route.\n'
         body=safe_path(ROOT,card['body_file']).read_text(encoding='utf-8')+binding
         body_path=staging/(card['key']+'.md')
         body_path.write_bytes(body.encode())

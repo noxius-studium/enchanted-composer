@@ -30,7 +30,7 @@ class HandoffChecks(unittest.TestCase):
 
     def test_readback_refuses_execution_and_drift(self):
         card={'key':'EC-R01'}
-        expected={'task':{'id':'example-not-a-live-task','status':'blocked','assignee':'verified-cloud-profile','provider_override':'nous','model_override':'tencent/hy4-flash:free','body':'exact body','current_run_id':None,'started_at':None},'parents':[{'id':'example-parent-not-a-live-task'}],'runs':[]}
+        expected={'task':{'id':'example-not-a-live-task','status':'blocked','assignee':'verified-cloud-profile','provider_override':'nous','model_override':'qwen/qwen4-max:free','body':'exact body','current_run_id':None,'started_at':None},'parents':[{'id':'example-parent-not-a-live-task'}],'runs':[]}
         importer.verify_task(expected,card,'verified-cloud-profile','exact body',['example-parent-not-a-live-task'])
         for field,bad_value in [('status','ready'),('body','truncated'),('provider_override','other'),('current_run_id','unexpected-run')]:
             altered=copy.deepcopy(expected)
