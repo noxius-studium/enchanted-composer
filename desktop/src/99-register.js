@@ -40,13 +40,15 @@ function createController(ctx) {
   const enhancer=new PromptEnhancer({draftAdapter:draft,ownerRouter,api:ctx,review:new EnhancementReview()}),draftShelf=new DraftShelfStore(ctx,{draftAdapter:draft,ownerRouter}),settingsStore=new ComposerSettingsStore(ctx)
   const delegation=new DelegationBridge({api:ctx,transcript}),resolver=new VoiceBackendResolver({'enchanted-realtime':new RealtimeVoiceAdapter(ctx,audio),'enchanted-bridge':new ComposerBridgeBackendAdapter(ctx,audio)})
   const voice=new LiveVoiceSessionController({ctx,ownerRouter,transcript,delegation,audio,resolver})
-  const interaction=new VoiceInteractionMode({setMuted:muted=>voice.setMuted(muted)}),controller={ctx,ownerRouter,transcript,audio,draft,enhancer,draftShelf,delegation,voice,interaction,settingsStore,settings:{...DEFAULT_SETTINGS},settingsOwner:null,voiceCatalog:null,library:validateLibrary(ctx.storage.get('library',null)||createLibrary()),libraryListeners:new Set(),composerControls:normalizeComposerControlVisibility(ctx.storage.get(COMPOSER_CONTROL_STORAGE_KEY,null)),composerControlListeners:new Set(),reviewProposal:null,reviewListeners:new Set(),
+  const interaction=new VoiceInteractionMode({setMuted:muted=>voice.setMuted(muted)}),controller={ctx,ownerRouter,transcript,audio,draft,enhancer,draftShelf,delegation,voice,interaction,settingsStore,settings:{...DEFAULT_SETTINGS},settingsOwner:null,voiceCatalog:null,library:validateLibrary(ctx.storage.get('library',null)||createLibrary()),libraryListeners:new Set(),composerControls:normalizeComposerControlVisibility(ctx.storage.get(COMPOSER_CONTROL_STORAGE_KEY,null)),composerControlListeners:new Set(),railLayoutVersion:normalizeRailLayoutVersion(ctx.storage.get(RAIL_LAYOUT_STORAGE_KEY,0)),railLayoutListeners:new Set(),reviewProposal:null,reviewListeners:new Set(),
     subscribeReviewProposal(listener){this.reviewListeners.add(listener);return()=>this.reviewListeners.delete(listener)},
     setReviewProposal(proposal){if(this.reviewProposal&&this.reviewProposal!==proposal)enhancer.discardProposal(this.reviewProposal);this.reviewProposal=proposal;for(const listener of this.reviewListeners)listener(proposal)},
     clearReviewProposal(proposal=this.reviewProposal){if(proposal!==this.reviewProposal)return false;this.reviewProposal=null;for(const listener of this.reviewListeners)listener(null);return true},
     saveLibrary(next){const value=validateLibrary(next);ctx.storage.set('library',value);this.library=value;for(const listener of this.libraryListeners)listener(value)},
     subscribeComposerControls(listener){this.composerControlListeners.add(listener);return()=>this.composerControlListeners.delete(listener)},
     setComposerControlVisibility(id,visible){if(!COMPOSER_CONTROL_DEFINITIONS.some(item=>item.id===id))throw new Error('Unknown composer control.');const next={...this.composerControls,[id]:visible===true};ctx.storage.set(COMPOSER_CONTROL_STORAGE_KEY,next);this.composerControls=next;for(const listener of this.composerControlListeners)listener(next);return next},
+    subscribeRailLayout(listener){this.railLayoutListeners.add(listener);return()=>this.railLayoutListeners.delete(listener)},
+    setRailLayoutVersion(value){const next=normalizeRailLayoutVersion(value);if(next!==1&&next!==2)throw new Error('Choose a valid rail layout.');ctx.storage.set(RAIL_LAYOUT_STORAGE_KEY,next);this.railLayoutVersion=next;for(const listener of this.railLayoutListeners)listener(next);return next},
     async saveSettings(patch,owner=this.settingsOwner){if(!owner)throw new Error('Load settings before editing.');const record=settingsStore.update(owner,patch);this.settings=record.value;return record},
     async refreshControlSurface(){
       const owner=await ownerRouter.capture({allowDraft:true});this.settingsOwner=owner
@@ -68,7 +70,7 @@ function createController(ctx) {
     },
     async retryVoice(){const session=await voice.retry();interaction.start();return session},
     async stopVoice(){await voice.stop();await interaction.cancel()},
-    async dispose(){if(this.reviewProposal)enhancer.discardProposal(this.reviewProposal);this.reviewProposal=null;this.reviewListeners.clear();this.composerControlListeners.clear();unsubscribeInteraction();await interaction.dispose();await voice.dispose();await settingsStore.dispose();enhancer.dispose();this.libraryListeners.clear()}
+    async dispose(){if(this.reviewProposal)enhancer.discardProposal(this.reviewProposal);this.reviewProposal=null;this.reviewListeners.clear();this.composerControlListeners.clear();this.railLayoutListeners.clear();unsubscribeInteraction();await interaction.dispose();await voice.dispose();await settingsStore.dispose();enhancer.dispose();this.libraryListeners.clear()}
   }
   const unsubscribeInteraction=voice.subscribe(snapshot=>{if(['idle','error'].includes(snapshot.state)&&interaction.callMode)void interaction.cancel()})
   return controller

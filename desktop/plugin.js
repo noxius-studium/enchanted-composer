@@ -219,6 +219,93 @@ const CONTRACT_TEST_EXPORTS = Object.freeze({
   transitionVoiceSession,
 })
 /* CONTRACTS_END */
+/* ICON_FAMILY_START */
+// Composer line-icon family (SPECIFICATION.md §6). Drawing contract §6.2:
+// viewBox 0 0 24 24, live area 3–21, stroke 1.75 round caps/joins, single
+// foreground via currentColor. Filled shapes limited to the specified stop
+// square (I29). No hard-coded colors; Hermes remains the sole theme authority.
+const COMPOSER_ICONS = Object.freeze({
+  I01: { name: 'Compose', paths: ['M4 5v14h14', 'M4 5h5', 'M15 3l6 6-8 8-4 1 1-4 8-8z'] },
+  I02: { name: 'Improve', paths: ['M5 19L14 10', 'M17 3l1.2 2.8L21 7l-2.8 1.2L17 11l-1.2-2.8L13 7l2.8-1.2L17 3z'] },
+  I03: { name: 'Library', paths: ['M5 4v16', 'M9 4v16', 'M13 4.5l4 15.5', 'M4 20h16'] },
+  I04: { name: 'Voice', paths: ['M12 3a3 3 0 0 1 3 3v5a3 3 0 0 1-6 0V6a3 3 0 0 1 3-3z', 'M6 11a6 6 0 0 0 12 0', 'M12 17v4'] },
+  I05: { name: 'Voice muted', paths: ['M12 3a3 3 0 0 1 3 3v5a3 3 0 0 1-6 0V6a3 3 0 0 1 3-3z', 'M6 11a6 6 0 0 0 12 0', 'M12 17v4', 'M4 4l16 16'] },
+  I06: { name: 'Voice modes', paths: ['M4 9c1.5-2 3-2 4.5 0', 'M4 15c1.5-2 3-2 4.5 0', 'M15.5 9c1.5-2 3-2 4.5 0', 'M15.5 15c1.5-2 3-2 4.5 0', 'M12 6v12'] },
+  I07: { name: 'Review changes', paths: ['M4 5h7', 'M4 9h7', 'M4 13h5', 'M13 11h7', 'M13 15h7', 'M13 19h5', 'M11 9c1 0 1 2 2 2'] },
+  I08: { name: 'Undo', paths: ['M4 9h11a5 5 0 0 1 0 10h-4', 'M8 5L4 9l4 4'] },
+  I09: { name: 'Redo', paths: ['M20 9H9a5 5 0 0 0 0 10h4', 'M16 5l4 4-4 4'] },
+  I10: { name: 'Saved draft', paths: ['M6 3h9l4 4v14H6z', 'M15 3v4h4', 'M10 16v5l2-1.5 2 1.5v-5'] },
+  I11: { name: 'History', paths: ['M5 12a7 7 0 1 0 2.5-5.4', 'M4 4v4h4', 'M12 8v4l3 2'] },
+  I12: { name: 'Context', paths: ['M4 4h10v12H4z', 'M10 8h10v12H10z', 'M11 12h2'] },
+  I13: { name: 'Requirement', paths: ['M6 4H4v16h2', 'M18 4h2v16h-2', 'M8 9h8', 'M8 13h5', 'M17 16a1 1 0 1 0 .01 0'] },
+  I14: { name: 'Lock literal', paths: ['M7 11V8a5 5 0 0 1 10 0v3', 'M5 11h14v9H5z', 'M12 14v3'] },
+  I15: { name: 'Output format', paths: ['M4 7V4h3', 'M17 4h3v3', 'M20 17v3h-3', 'M7 20H4v-3', 'M8 10h8', 'M8 14h8'] },
+  I16: { name: 'Preview', paths: ['M3 5h18v14H3z', 'M6 9h8', 'M14 14c1.5-2 4.5-2 6 0c-1.5 2-4.5 2-6 0z', 'M17 14a.5.5 0 1 0 .01 0'] },
+  I17: { name: 'Apply to draft', paths: ['M14 3h5v18h-5', 'M3 12h9', 'M9 8l4 4-4 4'] },
+  I18: { name: 'Export', paths: ['M4 15v5h16v-5', 'M12 15V4', 'M8 8l4-4 4 4'] },
+  I19: { name: 'Copy', paths: ['M9 8h10a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z', 'M4 16V5a1 1 0 0 1 1-1h11'] },
+  I20: { name: 'Branch', paths: ['M6 7v10', 'M6 12c5 0 9-1 10.5-3.5', 'M6 5a2 2 0 1 0 .01 0', 'M18 7a2 2 0 1 0 .01 0', 'M6 19a2 2 0 1 0 .01 0'] },
+  I21: { name: 'Workflow', paths: ['M3 4h6v5H3z', 'M15 4h6v5h-6z', 'M9 15h6v5H9z', 'M9 6.5h6', 'M18 9v3.5a1.5 1.5 0 0 1-1.5 1.5H13.5a1.5 1.5 0 0 0-1.5 1.5V15'] },
+  I22: { name: 'Team plan', paths: ['M8 6a2.5 2.5 0 1 0 .01 0', 'M16 6a2.5 2.5 0 1 0 .01 0', 'M5 13h14', 'M5 13v4', 'M19 13v4'] },
+  I23: { name: 'Compare', paths: ['M3 4h8v16H3z', 'M13 4h8v16h-8z', 'M5 8h4', 'M5 12h4', 'M15 8h4', 'M15 12h4'] },
+  I24: { name: 'Batch', paths: ['M5 4h14v4H5z', 'M5 10h14v4H5z', 'M5 16h14v4H5z', 'M7 6h2'] },
+  I25: { name: 'Reference design', paths: ['M3 5h18v14H3z', 'M16 6l3-3 2 2-3 3z'] },
+  I26: { name: 'Model route', paths: ['M3 5h6v5H3z', 'M15 14h6v5h-6z', 'M9 7.5h5.5a2 2 0 0 1 2 2V14'] },
+  I27: { name: 'Settings', paths: ['M4 6h16', 'M4 12h16', 'M4 18h16', 'M9 6a2 2 0 1 0 .01 0', 'M15 12a2 2 0 1 0 .01 0', 'M7 18a2 2 0 1 0 .01 0'] },
+  I28: { name: 'More', paths: ['M5 12a1.2 1.2 0 1 0 .01 0', 'M12 12a1.2 1.2 0 1 0 .01 0', 'M19 12a1.2 1.2 0 1 0 .01 0'] },
+  I29: { name: 'Stop', paths: ['M8 8h8v8H8z'], fill: 'currentColor' },
+  I30: { name: 'Close', paths: ['M6 6l12 12', 'M18 6L6 18'] },
+  I31: { name: 'Search', paths: ['M10.5 4a6.5 6.5 0 1 0 .01 0', 'M15.5 15.5L20 20'] },
+  I32: { name: 'Block', paths: ['M4 4h7v7H4z', 'M13 13h7v7h-7z', 'M11 7.5h2', 'M16.5 11v2'] },
+  I33: { name: 'Evidence', paths: ['M5 6c-1.5.8-2.5 2.2-2.5 4H5V6z', 'M11 6c-1.5.8-2.5 2.2-2.5 4H11V6z', 'M4 16h16', 'M4 19h10'] },
+  I34: { name: 'Feedback', paths: ['M4 4h16v12H9l-5 4z', 'M9 10l2 2 4-4'] },
+  I35: { name: 'Language', paths: ['M3 4h8v6H3z', 'M13 14h8v6h-8z', 'M10 12h4', 'M12 10l2 2-2 2'] },
+  I36: { name: 'Cost and usage', paths: ['M5 13v7', 'M10 9v11', 'M15 5v15', 'M18 6l1.5 1.5L21.5 5'] },
+})
+const COMPOSER_ICON_IDS = Object.freeze(Object.keys(COMPOSER_ICONS))
+// Decorative by default: the surrounding button supplies the accessible name.
+function ComposerIcon({ icon, size = 16, className = '' }) {
+  const entry = COMPOSER_ICONS[icon]
+  if (!entry) return null
+  return jsx('svg', {
+    viewBox: '0 0 24 24', width: size, height: size, className,
+    fill: entry.fill || 'none', stroke: entry.fill ? 'none' : 'currentColor',
+    strokeWidth: 1.75, strokeLinecap: 'round', strokeLinejoin: 'round',
+    'aria-hidden': true, focusable: false,
+    children: entry.paths.map((d, index) => jsx('path', { d }, index)),
+  })
+}
+// Rail layout contract (SPECIFICATION.md §7.0/§7.1). Pure helpers so tests can
+// verify overflow and migration behavior without a DOM.
+const RAIL_LAYOUT_STORAGE_KEY = 'rail-layout-version'
+function normalizeRailLayoutVersion(value) { return value === 2 ? 2 : value === 1 ? 1 : 0 }
+// Proposed width targets (§5.4 container-width rule); verified at implementation.
+function railTierForWidth(width) { return width >= 250 ? 0 : width >= 185 ? 1 : 2 }
+function railPlacements({ visibility, version, tier, voiceActive }) {
+  const legacy = normalizeRailLayoutVersion(version) < 2
+  const visible = id => !legacy || visibility[id] !== false
+  const improveVisible = !legacy || visibility.enhance !== false || visibility.review !== false
+  const rail = [], more = []
+  const libraryOn = visible('prompt-library')
+  const voiceOn = visible('voice')
+  if (libraryOn && tier === 0) rail.push('library'); else if (libraryOn) more.push('library')
+  if (tier < 2) rail.push('compose'); else more.push('compose')
+  if (improveVisible) rail.push('improve')
+  if (voiceActive) rail.push('voice-capsule')
+  else if (voiceOn && tier < 2) rail.push('voice')
+  else if (voiceOn) more.push('voice-start')
+  rail.push('more')
+  if (visible('undo')) more.push('undo')
+  if (visible('redo')) more.push('redo')
+  if (visible('draft-shelf')) more.push('save-draft')
+  if (visible('voice-mode')) more.push('voice-mode')
+  if (visible('settings')) { more.push('customize-bar'); more.push('settings') }
+  return { rail, more }
+}
+const MENU_ROW_CLASS = 'flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs text-(--ui-text-secondary) hover:bg-(--ui-control-active-background) hover:text-foreground disabled:cursor-default disabled:opacity-45'
+const MENU_GROUP_CLASS = 'px-2 pb-1 pt-2 text-[10px] font-medium uppercase tracking-wide text-(--ui-text-tertiary)'
+const MENU_NOTE_CLASS = 'border-t border-(--ui-stroke-secondary) px-2 pb-1 pt-2 text-[10px] leading-4 text-(--ui-text-tertiary)'
+/* ICON_FAMILY_END */
 /* OWNER_ROUTER_START */
 class OwnerRouter {
   constructor(api = host) { this.api = api; this.routes = new Map(); this.creating=null; this.draftIds=new Map() }
@@ -1158,14 +1245,24 @@ function ComposerBarPreview({visibility}) {
   const shown=COMPOSER_CONTROL_DEFINITIONS.filter(item=>visibility[item.id]!==false)
   return jsxs('div',{className:'ec-composer-preview','aria-label':'Composer bar preview',children:[jsxs('div',{className:'ec-preview-head',children:[jsx('span',{children:'Live preview'}),jsx('span',{children:`${shown.length} ${shown.length===1?'control':'controls'}`})]}),jsxs('div',{className:'ec-preview-input',children:[jsx('span',{className:'ec-preview-placeholder',children:'Adjust or continue'}),shown.length?jsx('div',{className:'ec-preview-icons',children:shown.map(item=>jsx('span',{className:'ec-preview-icon',title:item.label,'aria-label':item.label,children:item.id==='voice'?jsx(icons.Mic,{className:'size-3.5','aria-hidden':true}):jsx(Codicon,{name:item.icon,size:'0.8rem'})},item.id))}):jsx('span',{className:'ec-muted',children:'No Composer controls selected'})]})]})
 }
+function NewRailPreview() {
+  const items=[['I03','Library'],['I01','Compose'],['I02','Improve'],['I04','Voice'],['I28','More']]
+  return jsxs('div',{className:'ec-composer-preview','aria-label':'New default rail preview',children:[jsxs('div',{className:'ec-preview-head',children:[jsx('span',{children:'New default'}),jsx('span',{children:'5 actions'})]}),jsxs('div',{className:'ec-preview-input',children:[jsx('span',{className:'ec-preview-placeholder',children:'Adjust or continue'}),jsx('div',{className:'ec-preview-icons',children:items.map(([icon,label])=>jsx('span',{className:'ec-preview-icon',title:label,'aria-label':label,children:jsx(ComposerIcon,{icon,size:14})},icon))})]})]})
+}
+function RailLayoutChoice({controller}) {
+  const [version,setVersion]=useState(()=>normalizeRailLayoutVersion(controller.railLayoutVersion))
+  useEffect(()=>controller.subscribeRailLayout?.(value=>setVersion(normalizeRailLayoutVersion(value)))||(()=>{}),[controller])
+  const choose=value=>{try{controller.setRailLayoutVersion(value)}catch(error){host.notify({kind:'error',message:publicError(error)})}}
+  return jsxs('div',{className:'ec-note',children:[jsx('strong',{children:'One-time preview: the new default rail'}),jsx('p',{className:'ec-muted',children:'Library · Compose · Improve ▾ · Voice · More. Secondary actions move into More. Your current visibility choices stay active until you choose below.'}),jsx(NewRailPreview,{}),jsxs('div',{className:'ec-row',children:[jsx(Button,{type:'button',size:'sm',variant:version===2?'default':'ghost','aria-pressed':version===2,onClick:()=>choose(2),children:'Use the new default'}),jsx(Button,{type:'button',size:'sm',variant:version===1?'default':'ghost','aria-pressed':version===1,onClick:()=>choose(1),children:'Keep my current layout'})]}),jsx('p',{className:'ec-muted',role:'status',children:version===2?'Using the new default rail.':version===1?'Keeping your current layout.':'Preview only — your current layout is still active.'})]})
+}
 function ComposerControlsPanel({controller}) {
   const [visibility,setVisibility]=useState(()=>({...controller.composerControls}))
   useEffect(()=>controller.subscribeComposerControls(value=>setVisibility({...value})),[controller])
-  return jsxs('section',{className:'ec-section',children:[jsx(PanelHeader,{title:'Composer bar',description:'Choose exactly which Enchanted Composer controls appear beside the message box.'}),jsx(ComposerBarPreview,{visibility}),jsx('div',{className:'mt-4 grid gap-1.5',children:COMPOSER_CONTROL_DEFINITIONS.map(item=>jsxs('label',{className:'ec-control-toggle rounded-md border border-(--ui-stroke-secondary) bg-(--ui-control-background,transparent) px-3 py-2',children:[jsxs('span',{className:'min-w-0',children:[jsx('strong',{className:'block text-xs',children:item.label}),jsx('span',{className:'mt-0.5 block text-[10px] font-normal leading-4 text-(--ui-text-tertiary)',children:item.description})]}),jsxs('span',{className:'ec-toggle-control',children:[jsx('input',{type:'checkbox',className:'ec-toggle-input',checked:visibility[item.id]!==false,'aria-label':`Show ${item.label}`,onChange:event=>controller.setComposerControlVisibility(item.id,event.target.checked)}),jsx('span',{className:'ec-toggle-box','aria-hidden':true,children:jsx(Codicon,{name:'check',size:'0.65rem'})})]})]},item.id))}),jsx('p',{className:'ec-muted',children:'The settings page remains available from the sidebar even if you hide its composer icon.'})]})
+  return jsxs('section',{className:'ec-section',children:[jsx(PanelHeader,{title:'Composer bar',description:'Choose exactly which Enchanted Composer controls appear beside the message box.'}),jsx(ComposerBarPreview,{visibility}),jsx(RailLayoutChoice,{controller}),jsx('div',{className:'mt-4 grid gap-1.5',children:COMPOSER_CONTROL_DEFINITIONS.map(item=>jsxs('label',{className:'ec-control-toggle rounded-md border border-(--ui-stroke-secondary) bg-(--ui-control-background,transparent) px-3 py-2',children:[jsxs('span',{className:'min-w-0',children:[jsx('strong',{className:'block text-xs',children:item.label}),jsx('span',{className:'mt-0.5 block text-[10px] font-normal leading-4 text-(--ui-text-tertiary)',children:item.description})]}),jsxs('span',{className:'ec-toggle-control',children:[jsx('input',{type:'checkbox',className:'ec-toggle-input',checked:visibility[item.id]!==false,'aria-label':`Show ${item.label}`,onChange:event=>controller.setComposerControlVisibility(item.id,event.target.checked)}),jsx('span',{className:'ec-toggle-box','aria-hidden':true,children:jsx(Codicon,{name:'check',size:'0.65rem'})})]})]},item.id))}),jsx('p',{className:'ec-muted',children:'The settings page remains available from the sidebar even if you hide its composer icon.'})]})
 }
 const SETTINGS_TABS=Object.freeze([['enhancement','Enhancement'],['prompts','Prompts'],['composer','Composer bar'],['voice','Voice'],['audio','Audio'],['usage','Account & usage']])
 function EnchantedComposerPage({controller}) {
-  const [tab,setTab]=useState('enhancement'),[state,setState]=useState({loading:true,error:'',record:null}),[scan,setScan]=useState(false)
+  const [tab,setTab]=useState(()=>{const hint=controller.ctx.storage.get('ec-settings-tab-hint',null);if(hint){controller.ctx.storage.remove?.('ec-settings-tab-hint');if(SETTINGS_TABS.some(([id])=>id===hint))return hint}return 'enhancement'}),[state,setState]=useState({loading:true,error:'',record:null}),[scan,setScan]=useState(false)
   const mounted=useRef(false),generation=useRef(0)
   const refresh=async()=>{const gen=++generation.current;setState(previous=>({...previous,loading:true,error:''}));try{const data=await controller.refreshControlSurface();if(mounted.current&&gen===generation.current)setState({...data,record:{...data.record},loading:false,error:''})}catch(error){if(mounted.current&&gen===generation.current)setState(previous=>({...previous,loading:false,error:publicError(error)}))}}
   useEffect(()=>{mounted.current=true;void refresh();const unsubscribe=controller.settingsStore.subscribe(record=>{if(mounted.current)setState(previous=>previous.record?.key===record.key?{...previous,record:{...record}}:previous)});return()=>{mounted.current=false;++generation.current;unsubscribe()}},[controller])
@@ -1205,7 +1302,7 @@ function VoiceTranscriptPanel({controller}) {
 function VoiceStatusPill({controller}) {
   const state=useControllerSnapshot(controller),interaction=useInteractionSnapshot(controller),active=['connecting','live','reconnecting','ending'].includes(state.state),pushToTalk=interaction.callMode==='push-to-talk'
   const start=()=>controller.startVoice().catch(error=>host.notify({kind:'error',message:publicError(error)}))
-  if(!active)return jsx('button',{type:'button',className:ACTION_CLASS,'aria-label':state.state==='error'?'Retry Live Voice':'Start Live Voice',title:state.state==='error'?'Retry Live Voice':'Start Live Voice',onMouseDown:event=>event.preventDefault(),onClick:state.state==='error'?()=>controller.retryVoice().catch(error=>host.notify({kind:'error',message:publicError(error)})):start,children:jsx(icons.Mic,{className:'size-4','aria-hidden':true})})
+  if(!active)return jsx('button',{type:'button',className:ACTION_CLASS,'aria-label':state.state==='error'?'Retry Live Voice':'Start Live Voice',title:state.state==='error'?'Retry Live Voice':'Start Live Voice',onMouseDown:event=>event.preventDefault(),onClick:state.state==='error'?()=>controller.retryVoice().catch(error=>host.notify({kind:'error',message:publicError(error)})):start,children:jsx(ComposerIcon,{icon:'I04',size:16})})
   const pttAction=fn=>fn().catch(error=>host.notify({kind:'error',message:publicError(error)})),keyboardPress=event=>{if(!event.repeat&&['Enter',' '].includes(event.key)){event.preventDefault();pttAction(()=>controller.interaction.press())}},keyboardRelease=event=>{if(['Enter',' '].includes(event.key)){event.preventDefault();pttAction(()=>controller.interaction.release())}}
   const micHandlers=pushToTalk?{onPointerDown:()=>pttAction(()=>controller.interaction.press()),onPointerUp:()=>pttAction(()=>controller.interaction.release()),onPointerCancel:()=>pttAction(()=>controller.interaction.release()),onPointerLeave:()=>pttAction(()=>controller.interaction.release()),onBlur:()=>pttAction(()=>controller.interaction.blur()),onKeyDown:keyboardPress,onKeyUp:keyboardRelease}:{onClick:()=>controller.voice.mute().catch(error=>host.notify({kind:'error',message:publicError(error)}))}
   const micLabel=pushToTalk?(interaction.pressed?'Release to mute':'Hold to talk'):(state.muted?'Unmute Live Voice':'Mute Live Voice')
@@ -1227,9 +1324,13 @@ function ComposerEnhancementReviewPanel({controller}) {
   const apply=async ids=>{if(busy)return;setBusy(true);try{await applyReviewProposal(controller,proposal,ids)}catch(error){host.notify({kind:'error',message:publicError(error)})}finally{setBusy(false)}}
   return jsx('section',{className:'mx-2 mb-1 rounded-md border border-(--ui-stroke-secondary) bg-(--ui-background) p-2 text-xs',role:'region','aria-label':'Enhancement review',children:jsxs(Fragment,{children:[jsxs('div',{className:'flex items-center justify-between gap-2',children:[jsx('strong',{children:'Review enhancement'}),jsx('span',{className:'text-(--ui-text-tertiary)',children:whole?'Full draft replacement':'Choose changes to apply'})]}),jsxs('div',{className:'mt-2 grid gap-2 md:grid-cols-2',children:[jsxs('label',{children:['Original draft',jsx('pre',{className:'mt-1 max-h-24 overflow-auto whitespace-pre-wrap rounded border border-(--ui-stroke-secondary) p-1 text-(--ui-text-secondary)',children:proposal.original})]}),jsxs('label',{children:['Proposed draft',jsx('pre',{className:'mt-1 max-h-24 overflow-auto whitespace-pre-wrap rounded border border-(--ui-stroke-secondary) p-1 text-(--ui-text-secondary)',children:proposal.proposed})]})]}),!whole?jsx('div',{className:'mt-2 max-h-24 space-y-1 overflow-auto',children:groups.map(group=>jsx('label',{className:'flex items-start gap-2',children:[jsx('input',{type:'checkbox',checked:selected.has(group.id),onChange:()=>toggle(group.id),'aria-label':`Select ${group.id}`}),jsx('span',{children:`${group.id} · ${proposal.original.slice(group.start,group.end)||'∅'} → ${group.replacement||'∅'}`})]},group.id))}):null,jsxs('div',{className:'mt-2 flex flex-wrap gap-2',children:[jsx(Button,{type:'button',size:'sm',disabled:busy||(!whole&&selected.size===0),onClick:()=>apply([...selected]),children:'Apply selected'}),jsx(Button,{type:'button',size:'sm',variant:'ghost',disabled:busy,onClick:()=>apply(null),children:'Apply all'}),jsx(Button,{type:'button',size:'sm',variant:'ghost',disabled:busy,onClick:()=>discardReviewProposal(controller,proposal),children:'Keep original'})]})]})})
 }
-function ComposerDraftShelf({controller}) { return jsx('button',{type:'button',className:ACTION_CLASS,'aria-label':'Draft Shelf',title:'Draft Shelf',onClick:async()=>{try{const owner=await controller.ownerRouter.capture({allowDraft:true,draftId:'composer'}),surface=controller.draft.capture(),text=await controller.draft.read(surface);controller.draftShelf.save(owner,surface,{name:'Untitled draft',text})}catch(error){host.notify({kind:'error',message:publicError(error)})}},children:jsx(Codicon,{name:'bookmark',size:'0.95rem'})}) }
-function ComposerPromptMenu({ controller }) {
-  const [library,setLibrary]=useState(()=>controller.library),[open,setOpen]=useState(false),[query,setQuery]=useState(''),[selected,setSelected]=useState(0),[preferences,setPreferences]=useState(()=>normalizePalettePreferences(controller.ctx.storage.get('prompt-palette-preferences',{favorites:[],recent:[]}))),triggerRef=useRef(null),searchRef=useRef(null)
+function ComposerDraftShelf({controller,row=false}) {
+  const save=async()=>{try{const owner=await controller.ownerRouter.capture({allowDraft:true,draftId:'composer'}),surface=controller.draft.capture(),text=await controller.draft.read(surface);controller.draftShelf.save(owner,surface,{name:'Untitled draft',text});if(row)host.notify({kind:'info',message:'Draft saved on this device.'})}catch(error){host.notify({kind:'error',message:publicError(error)})}}
+  if(row)return jsxs('button',{type:'button',role:'menuitem',className:MENU_ROW_CLASS,onClick:save,children:[jsx(ComposerIcon,{icon:'I10',size:16}),jsx('span',{children:'Save draft'})]})
+  return jsx('button',{type:'button',className:ACTION_CLASS,'aria-label':'Draft Shelf',title:'Draft Shelf',onClick:save,children:jsx(ComposerIcon,{icon:'I10',size:16})})
+}
+function ComposerPromptMenu({ controller, open: openProp, onOpenChange: onOpenChangeProp }) {
+  const [library,setLibrary]=useState(()=>controller.library),[openState,setOpenState]=useState(false),open=openProp??openState,setOpen=next=>{setOpenState(next);onOpenChangeProp?.(next)},[query,setQuery]=useState(''),[selected,setSelected]=useState(0),[preferences,setPreferences]=useState(()=>normalizePalettePreferences(controller.ctx.storage.get('prompt-palette-preferences',{favorites:[],recent:[]}))),triggerRef=useRef(null),searchRef=useRef(null)
   useEffect(()=>{const listener=value=>setLibrary(value);controller.libraryListeners.add(listener);return()=>controller.libraryListeners.delete(listener)},[controller])
   useEffect(()=>{if(open)queueMicrotask(()=>searchRef.current?.focus())},[open])
   const savePreferences=update=>setPreferences(current=>{const value=updatePalettePreferences(current,update);controller.ctx.storage.set('prompt-palette-preferences',value);return value})
@@ -1239,17 +1340,94 @@ function ComposerPromptMenu({ controller }) {
   const activate=row=>{if(!row)return;change({type:'prompt.select',id:row.id});remember(row.id);close()}
   const keyDown=event=>{if(event.key==='Escape'){event.preventDefault();close();return}if(event.target?.closest?.('button,textarea,select,a'))return;if(event.key==='ArrowDown'){event.preventDefault();setSelected(value=>Math.min(value+1,Math.max(0,rows.length-1)))}else if(event.key==='ArrowUp'){event.preventDefault();setSelected(value=>Math.max(0,value-1))}else if(event.key==='Enter'){event.preventDefault();activate(selectedRow)}}
   const active=library.prompts.find(prompt=>prompt.id===library.activePromptId)
-  return jsx(Popover,{open,onOpenChange:next=>{if(next)setOpen(true);else close()},children:jsxs(Fragment,{children:[jsx(PopoverTrigger,{asChild:true,children:jsx('button',{ref:triggerRef,type:'button',className:ACTION_CLASS,'aria-label':'Prompt library',title:active?`Prompt · ${active.name}`:'Prompt library',children:jsx(Codicon,{name:'notebook',size:'0.95rem'})})}),jsx(PopoverContent,{align:'end',variant:'menu',className:'w-64 max-w-[calc(100vw-1rem)] bg-(--ui-bg-elevated) p-1',children:jsxs('div',{onKeyDown:keyDown,children:[jsx('input',{ref:searchRef,type:'search',role:'combobox',value:query,onChange:event=>{setQuery(event.target.value);setSelected(0)},placeholder:'Search prompts','aria-label':'Search prompts','aria-controls':'prompt-action-results','aria-expanded':open,'aria-activedescendant':open&&selectedRow?optionId(selectedRow):undefined,className:'w-full rounded-md border border-(--ui-stroke-secondary) bg-(--ui-bg-elevated) p-1.5 text-xs text-foreground outline-none focus:border-(--ui-stroke-primary)'}),jsx('div',{id:'prompt-action-results',role:'listbox','aria-label':'Prompt results',className:'mt-1 max-h-56 space-y-0.5 overflow-y-auto',children:rows.map((row,index)=>jsxs('div',{id:optionId(row),role:'option','aria-selected':index===selected,className:`block cursor-pointer rounded-md px-2 py-1.5 ${index===selected?'bg-(--ui-control-active-background)':''}`,onMouseEnter:()=>setSelected(index),onMouseDown:event=>event.preventDefault(),onClick:()=>activate(row),children:[jsx('strong',{className:'block truncate text-xs',children:row.title}),jsx('span',{className:'block truncate text-[10px] text-(--ui-text-tertiary)',children:row.subtitle})]},`${row.kind}:${row.id}`))}),!rows.length?jsx('p',{className:'p-3 text-center text-xs text-(--ui-text-tertiary)',children:'No prompts match that search.'}):null,selectedRow?.kind==='prompt'?jsxs('div',{className:'mt-1 flex flex-wrap gap-1 border-t border-(--ui-stroke-secondary) pt-1',children:[jsx(Button,{type:'button',size:'sm',variant:'ghost',onClick:()=>{const favorite=!preferences.favorites.includes(selectedRow.id);savePreferences(current=>({...current,favorites:favorite?[selectedRow.id,...current.favorites]:current.favorites.filter(item=>item!==selectedRow.id)}))},children:preferences.favorites.includes(selectedRow.id)?'★':'☆'}),jsx(Button,{type:'button',size:'sm',variant:selectedRow.id===library.activePromptId?'default':'ghost',onClick:()=>activate(selectedRow),children:selectedRow.id===library.activePromptId?'Using':'Use for Enhance'}),jsx(Button,{type:'button',size:'sm',variant:'ghost',onClick:()=>{controller.enhancer.insert(selectedRow.prompt.body).then(()=>remember(selectedRow.id)).catch(error=>host.notify({kind:'error',message:publicError(error)}))},children:'Insert'})]}):null,jsx('p',{className:'mt-1 text-[10px] text-(--ui-text-tertiary)',children:'↑↓ navigate · Enter use · Esc close'})]})})]})})
+  return jsx(Popover,{open,onOpenChange:next=>{if(next)setOpen(true);else close()},children:jsxs(Fragment,{children:[jsx(PopoverTrigger,{asChild:true,children:jsx('button',{ref:triggerRef,type:'button',className:ACTION_CLASS,'aria-label':'Prompt library',title:active?`Prompt · ${active.name}`:'Prompt library',children:jsx(ComposerIcon,{icon:'I03',size:16})})}),jsx(PopoverContent,{align:'end',variant:'menu',className:'w-64 max-w-[calc(100vw-1rem)] bg-(--ui-bg-elevated) p-1',children:jsxs('div',{onKeyDown:keyDown,children:[jsx('input',{ref:searchRef,type:'search',role:'combobox',value:query,onChange:event=>{setQuery(event.target.value);setSelected(0)},placeholder:'Search prompts','aria-label':'Search prompts','aria-controls':'prompt-action-results','aria-expanded':open,'aria-activedescendant':open&&selectedRow?optionId(selectedRow):undefined,className:'w-full rounded-md border border-(--ui-stroke-secondary) bg-(--ui-bg-elevated) p-1.5 text-xs text-foreground outline-none focus:border-(--ui-stroke-primary)'}),jsx('div',{id:'prompt-action-results',role:'listbox','aria-label':'Prompt results',className:'mt-1 max-h-56 space-y-0.5 overflow-y-auto',children:rows.map((row,index)=>jsxs('div',{id:optionId(row),role:'option','aria-selected':index===selected,className:`block cursor-pointer rounded-md px-2 py-1.5 ${index===selected?'bg-(--ui-control-active-background)':''}`,onMouseEnter:()=>setSelected(index),onMouseDown:event=>event.preventDefault(),onClick:()=>activate(row),children:[jsx('strong',{className:'block truncate text-xs',children:row.title}),jsx('span',{className:'block truncate text-[10px] text-(--ui-text-tertiary)',children:row.subtitle})]},`${row.kind}:${row.id}`))}),!rows.length?jsx('p',{className:'p-3 text-center text-xs text-(--ui-text-tertiary)',children:'No prompts match that search.'}):null,selectedRow?.kind==='prompt'?jsxs('div',{className:'mt-1 flex flex-wrap gap-1 border-t border-(--ui-stroke-secondary) pt-1',children:[jsx(Button,{type:'button',size:'sm',variant:'ghost',onClick:()=>{const favorite=!preferences.favorites.includes(selectedRow.id);savePreferences(current=>({...current,favorites:favorite?[selectedRow.id,...current.favorites]:current.favorites.filter(item=>item!==selectedRow.id)}))},children:preferences.favorites.includes(selectedRow.id)?'★':'☆'}),jsx(Button,{type:'button',size:'sm',variant:selectedRow.id===library.activePromptId?'default':'ghost',onClick:()=>activate(selectedRow),children:selectedRow.id===library.activePromptId?'Using':'Use for Enhance'}),jsx(Button,{type:'button',size:'sm',variant:'ghost',onClick:()=>{controller.enhancer.insert(selectedRow.prompt.body).then(()=>remember(selectedRow.id)).catch(error=>host.notify({kind:'error',message:publicError(error)}))},children:'Insert'})]}):null,jsx('p',{className:'mt-1 text-[10px] text-(--ui-text-tertiary)',children:'↑↓ navigate · Enter use · Esc close'})]})})]})})
 }
 function VoiceTaskInspector({controller}) { const [snapshot,setSnapshot]=useState(()=>controller.delegation.snapshot());useEffect(()=>controller.delegation.subscribe(setSnapshot),[controller]);const task=snapshot.active||snapshot.queued;if(!task&&snapshot.state==='idle')return null;return jsx('section',{role:'region','aria-label':'Voice task inspector',className:'mx-2 mb-1 rounded-md border border-(--ui-stroke-secondary) p-2 text-xs',children:jsxs(Fragment,{children:[jsx('strong',{children:`Voice task · ${snapshot.state}`}),task?jsx('p',{children:bounded(task.text,240)}):null,task?.lastSteering?jsx('p',{children:`Last steer: ${bounded(task.lastSteering,160)}`}):null,task?.resultDelivery?jsx('p',{children:`Result delivery: ${task.resultDelivery}`}):null,jsx(Button,{size:'sm',variant:'ghost',disabled:!snapshot.active,onClick:()=>controller.delegation.cancel().catch(error=>host.notify({kind:'error',message:publicError(error)})),children:'Stop'}),jsx(Button,{size:'sm',variant:'ghost',disabled:!snapshot.active,onClick:()=>{const text=globalThis.prompt?.('Steer active task');if(text)controller.delegation.request(task.owner||{},text,`${Date.now()}`,()=>{})},children:'Steer'})]})}) }
-function VoiceInteractionModeChooser({controller}) {
+function VoiceInteractionModeChooser({controller,row=false}) {
   const interaction=useInteractionSnapshot(controller),[open,setOpen]=useState(false),mode=interaction.mode,label=mode==='push-to-talk'?'Push to talk':'Continuous'
   const choose=next=>{try{controller.interaction.setMode(next);setOpen(false)}catch(error){host.notify({kind:'error',message:publicError(error)})}}
-  return jsx(Popover,{open,onOpenChange:setOpen,children:jsxs(Fragment,{children:[jsx(PopoverTrigger,{asChild:true,children:jsx('button',{type:'button',className:ACTION_CLASS,'aria-label':`Voice mode · ${label}`,title:`Voice mode · ${label}`,children:jsx(Codicon,{name:mode==='push-to-talk'?'radio-tower':'broadcast',size:'0.95rem'})})}),jsx(PopoverContent,{align:'end',variant:'menu',className:'w-40 bg-(--ui-bg-elevated) p-1',children:jsxs('div',{role:'menu','aria-label':'Voice interaction mode',children:[jsx('button',{type:'button',role:'menuitemradio','aria-checked':mode==='continuous',disabled:interaction.active&&mode!=='continuous',className:`flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs ${mode==='continuous'?'bg-(--ui-control-active-background)':''}`,onClick:()=>choose('continuous'),children:jsx('span',{children:'Continuous'})}),jsx('button',{type:'button',role:'menuitemradio','aria-checked':mode==='push-to-talk',disabled:interaction.active&&mode!=='push-to-talk',className:`flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs ${mode==='push-to-talk'?'bg-(--ui-control-active-background)':''}`,onClick:()=>choose('push-to-talk'),children:jsx('span',{children:'Push to talk'})}),jsx('button',{type:'button',role:'menuitemradio','aria-checked':false,disabled:true,className:'flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs text-(--ui-text-tertiary) opacity-60',title:'Chained voice requires a public Hermes seam',children:jsx('span',{children:'Chained (unavailable)'})})]})})]})})
+  const trigger=row
+    ?jsxs('button',{type:'button',role:'menuitem',className:MENU_ROW_CLASS,'aria-label':`Voice mode · ${label}`,title:`Voice mode · ${label}`,children:[jsx(ComposerIcon,{icon:'I06',size:16}),jsx('span',{children:`Voice mode · ${label}`})]})
+    :jsx('button',{type:'button',className:ACTION_CLASS,'aria-label':`Voice mode · ${label}`,title:`Voice mode · ${label}`,children:jsx(ComposerIcon,{icon:'I06',size:16})})
+  return jsx(Popover,{open,onOpenChange:setOpen,children:jsxs(Fragment,{children:[jsx(PopoverTrigger,{asChild:true,children:trigger}),jsx(PopoverContent,{align:'end',variant:'menu',className:'w-40 bg-(--ui-bg-elevated) p-1',children:jsxs('div',{role:'menu','aria-label':'Voice interaction mode',children:[jsx('button',{type:'button',role:'menuitemradio','aria-checked':mode==='continuous',disabled:interaction.active&&mode!=='continuous',className:`flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs ${mode==='continuous'?'bg-(--ui-control-active-background)':''}`,onClick:()=>choose('continuous'),children:jsx('span',{children:'Continuous'})}),jsx('button',{type:'button',role:'menuitemradio','aria-checked':mode==='push-to-talk',disabled:interaction.active&&mode!=='push-to-talk',className:`flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs ${mode==='push-to-talk'?'bg-(--ui-control-active-background)':''}`,onClick:()=>choose('push-to-talk'),children:jsx('span',{children:'Push to talk'})}),jsx('button',{type:'button',role:'menuitemradio','aria-checked':false,disabled:true,className:'flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs text-(--ui-text-tertiary) opacity-60',title:'Chained voice requires a public Hermes seam',children:jsx('span',{children:'Chained (unavailable)'})})]})})]})})
+}
+async function moveEnhancement(controller,fn) { try{if(!await fn(controller))host.notify({kind:'info',message:'This draft changed after enhancement. Your edits have been preserved.'})}catch(error){host.notify({kind:'error',message:publicError(error)})} }
+function useLibraryIndex(controller) {
+  const [library,setLibrary]=useState(()=>controller.library),[query,setQuery]=useState(''),[selected,setSelected]=useState(0),[preferences,setPreferences]=useState(()=>normalizePalettePreferences(controller.ctx.storage.get('prompt-palette-preferences',{favorites:[],recent:[]})))
+  useEffect(()=>{const listener=value=>setLibrary(value);controller.libraryListeners.add(listener);return()=>controller.libraryListeners.delete(listener)},[controller])
+  const savePreferences=update=>setPreferences(current=>{const value=updatePalettePreferences(current,update);controller.ctx.storage.set('prompt-palette-preferences',value);return value})
+  const change=action=>{try{controller.saveLibrary(libraryChange(controller.library,action))}catch(error){host.notify({kind:'error',message:publicError(error)})}}
+  const remember=id=>savePreferences(current=>({...current,recent:[id,...current.recent.filter(item=>item!==id)]}))
+  const rows=buildPromptActionIndex(library,preferences,query)
+  return {library,query,setQuery,selected,setSelected,preferences,savePreferences,change,remember,rows}
+}
+function MoreLibraryView({controller,onBack,onDone}) {
+  const {library,query,setQuery,selected,setSelected,preferences,savePreferences,change,remember,rows}=useLibraryIndex(controller)
+  const searchRef=useRef(null),selectedRow=rows[selected]
+  useEffect(()=>{queueMicrotask(()=>searchRef.current?.focus())},[])
+  const activate=row=>{if(!row)return;change({type:'prompt.select',id:row.id});remember(row.id);onDone()}
+  const keyDown=event=>{if(event.key==='Escape'){event.preventDefault();onBack();return}if(event.target?.closest?.('button,textarea,select,a'))return;if(event.key==='ArrowDown'){event.preventDefault();setSelected(value=>Math.min(value+1,Math.max(0,rows.length-1)))}else if(event.key==='ArrowUp'){event.preventDefault();setSelected(value=>Math.max(0,value-1))}else if(event.key==='Enter'){event.preventDefault();activate(selectedRow)}}
+  return jsxs('div',{onKeyDown:keyDown,children:[
+    jsxs('button',{type:'button',className:MENU_ROW_CLASS,onClick:onBack,children:[jsx('span',{'aria-hidden':true,children:'‹'}),jsx('span',{children:'Back to actions'})]}),
+    jsx('input',{ref:searchRef,type:'search',value:query,onChange:event=>{setQuery(event.target.value);setSelected(0)},placeholder:'Search prompts','aria-label':'Search prompts',className:'mt-1 w-full rounded-md border border-(--ui-stroke-secondary) bg-(--ui-bg-elevated) p-1.5 text-xs text-foreground outline-none focus:border-(--ui-stroke-primary)'}),
+    jsx('div',{role:'listbox','aria-label':'Prompt results',className:'mt-1 max-h-56 space-y-0.5 overflow-y-auto',children:rows.map((row,index)=>jsxs('div',{role:'option','aria-selected':index===selected,className:`block cursor-pointer rounded-md px-2 py-1.5 ${index===selected?'bg-(--ui-control-active-background)':''}`,onMouseEnter:()=>setSelected(index),onMouseDown:event=>event.preventDefault(),onClick:()=>activate(row),children:[jsx('strong',{className:'block truncate text-xs',children:row.title}),jsx('span',{className:'block truncate text-[10px] text-(--ui-text-tertiary)',children:row.subtitle})]},`${row.kind}:${row.id}`))}),
+    !rows.length?jsx('p',{className:'p-3 text-center text-xs text-(--ui-text-tertiary)',children:'No prompts match that search.'}):null,
+    selectedRow?.kind==='prompt'?jsxs('div',{className:'mt-1 flex flex-wrap gap-1 border-t border-(--ui-stroke-secondary) pt-1',children:[jsx(Button,{type:'button',size:'sm',variant:'ghost',onClick:()=>{const favorite=!preferences.favorites.includes(selectedRow.id);savePreferences(current=>({...current,favorites:favorite?[selectedRow.id,...current.favorites]:current.favorites.filter(item=>item!==selectedRow.id)}))},children:preferences.favorites.includes(selectedRow.id)?'★':'☆'}),jsx(Button,{type:'button',size:'sm',variant:selectedRow.id===library.activePromptId?'default':'ghost',onClick:()=>activate(selectedRow),children:selectedRow.id===library.activePromptId?'Using':'Use for Enhance'}),jsx(Button,{type:'button',size:'sm',variant:'ghost',onClick:()=>{controller.enhancer.insert(selectedRow.prompt.body).then(()=>remember(selectedRow.id)).catch(error=>host.notify({kind:'error',message:publicError(error)}))},children:'Insert'})]}):null,
+  ]})
+}
+function ImproveMenu({controller,enhancing,setEnhancing,history,onOpenLibrary}) {
+  const [open,setOpen]=useState(false),triggerRef=useRef(null),library=controller.library,active=library.prompts.find(prompt=>prompt.id===library.activePromptId)
+  const close=()=>{setOpen(false);queueMicrotask(()=>triggerRef.current?.focus())}
+  const run=async fn=>{if(enhancing)return;setEnhancing(true);try{await fn(controller);close()}catch(error){host.notify({kind:'error',message:publicError(error)})}finally{setEnhancing(false)}}
+  const runBuiltin=async id=>{const prompt=controller.library.prompts.find(item=>item.id===id);if(!prompt){host.notify({kind:'error',message:'That built-in recipe is missing from your library.'});return}
+    if(enhancing)return;setEnhancing(true);try{const {owner}=await controller.enhancer.capture();await controller.enhancer.enhance(owner,prompt,controller.library.enhanceWith);close()}catch(error){host.notify({kind:'error',message:publicError(error)})}finally{setEnhancing(false)}}
+  const label=enhancing?'Enhancing draft':'Enhance draft',busy=enhancing||history.busy
+  const row=(key,text,onClick,detail='')=>jsxs('button',{type:'button',role:'menuitem',className:MENU_ROW_CLASS,disabled:busy,onClick,children:[jsx('span',{className:'min-w-0 flex-1 truncate',children:text}),detail?jsx('span',{className:'text-[10px] text-(--ui-text-tertiary)',children:detail}):null]},key)
+  return jsx(Popover,{open,onOpenChange:next=>next?setOpen(true):close(),children:jsxs(Fragment,{children:[
+    jsx(PopoverTrigger,{asChild:true,children:jsxs('button',{ref:triggerRef,type:'button',className:`${ACTION_CLASS} w-auto gap-1 px-1.5`,'aria-label':label,title:label,'aria-haspopup':'menu','aria-expanded':open,disabled:busy,onMouseDown:event=>event.preventDefault(),children:[enhancing?jsx(Codicon,{name:'loading',size:'0.95rem'}):jsx(ComposerIcon,{icon:'I02',size:16}),jsx('span',{className:'text-xs',children:enhancing?'Enhancing':'Improve'}),jsx(Codicon,{name:'chevron-down',size:'0.7rem'})]})}),
+    jsx(PopoverContent,{align:'end',variant:'menu',className:'w-72 max-w-[calc(100vw-1rem)] bg-(--ui-bg-elevated) p-1',children:jsxs('div',{role:'menu','aria-label':'Improve',children:[
+      jsxs('div',{className:'flex items-center justify-between gap-2 px-2 py-1.5 text-xs text-(--ui-text-secondary)',children:[jsxs('span',{className:'min-w-0 truncate',children:['Recipe: ',jsx('strong',{children:active?.name||'none'})]}),jsx(Button,{type:'button',size:'sm',variant:'ghost',onClick:()=>{close();onOpenLibrary()},children:'Change'})]}),
+      row('primary','Improve with recipe',()=>run(enhanceDraft),'Uses helper model'),
+      row('review','Review changes before applying',()=>run(proposeEnhancement),'Uses helper model'),
+      jsx('div',{className:MENU_GROUP_CLASS,children:'Built-in recipes'}),
+      ...DEFAULT_PROMPTS.map(([id,name])=>row(id,name,()=>runBuiltin(id))),
+      jsx('div',{className:MENU_GROUP_CLASS,children:'Configure'}),
+      row('model','Choose enhancement model',()=>{close();host.navigate('/enchanted-composer')}),
+      jsx('p',{className:MENU_NOTE_CLASS,children:'These operations use your helper model. Nothing is sent to chat.'}),
+    ]})})]})})
+}
+function MoreMenu({controller,history,moreKeys,open,onOpenChange,view,onViewChange}) {
+  const triggerRef=useRef(null)
+  const close=()=>{onOpenChange(false);queueMicrotask(()=>triggerRef.current?.focus())}
+  const nav=hint=>{if(hint)controller.ctx.storage.set('ec-settings-tab-hint',hint);close();host.navigate('/enchanted-composer')}
+  const group=label=>jsx('div',{className:MENU_GROUP_CLASS,children:label},`g-${label}`)
+  const iconRow=(key,icon,text,onClick,disabled=false,title=text)=>jsxs('button',{type:'button',role:'menuitem',className:MENU_ROW_CLASS,disabled,title,onClick,children:[jsx(ComposerIcon,{icon,size:16}),jsx('span',{children:text})]},key)
+  const rows=[]
+  if(moreKeys.includes('undo')||moreKeys.includes('redo')){rows.push(group('Continue'))
+    if(moreKeys.includes('undo'))rows.push(iconRow('undo','I08','Undo enhancement',()=>{close();void moveEnhancement(controller,undoEnhancement)},!history.canUndo||history.busy,history.canUndo?'Undo enhancement':'Nothing to undo yet'))
+    if(moreKeys.includes('redo'))rows.push(iconRow('redo','I09','Redo enhancement',()=>{close();void moveEnhancement(controller,redoEnhancement)},!history.canRedo||history.busy,history.canRedo?'Redo enhancement':'Nothing to redo yet'))}
+  if(moreKeys.includes('save-draft')){rows.push(group('Keep'));rows.push(jsx(ComposerDraftShelf,{controller,row:true},'save'))}
+  if(moreKeys.includes('library')||moreKeys.includes('compose')){rows.push(group('Prepare'))
+    if(moreKeys.includes('library'))rows.push(iconRow('library','I03','Prompt library',()=>onViewChange('library')))
+    if(moreKeys.includes('compose'))rows.push(iconRow('compose','I01','Compose',()=>nav()))}
+  if(moreKeys.includes('voice-mode')||moreKeys.includes('voice-start')){rows.push(group('Voice'))
+    if(moreKeys.includes('voice-mode'))rows.push(jsx(VoiceInteractionModeChooser,{controller,row:true},'voice-mode'))
+    if(moreKeys.includes('voice-start'))rows.push(iconRow('voice-start','I04','Start Live Voice',()=>{close();controller.startVoice().catch(error=>host.notify({kind:'error',message:publicError(error)}))}))}
+  if(moreKeys.includes('customize-bar')||moreKeys.includes('settings')){rows.push(group('Configure'))
+    if(moreKeys.includes('customize-bar'))rows.push(iconRow('customize-bar','I27','Customize bar',()=>nav('composer')))
+    if(moreKeys.includes('settings'))rows.push(iconRow('settings','I27','Composer settings',()=>nav('enhancement')))}
+  const content=view==='library'
+    ?jsx(MoreLibraryView,{controller,onBack:()=>onViewChange('root'),onDone:close})
+    :jsxs('div',{role:'menu','aria-label':'More actions',children:rows})
+  return jsx(Popover,{open,onOpenChange:next=>next?onOpenChange(true):close(),children:jsxs(Fragment,{children:[
+    jsx(PopoverTrigger,{asChild:true,children:jsx('button',{ref:triggerRef,type:'button',className:ACTION_CLASS,'aria-label':'More actions',title:'More actions','aria-haspopup':'menu','aria-expanded':open,onMouseDown:event=>event.preventDefault(),children:jsx(ComposerIcon,{icon:'I28',size:16})})}),
+    jsx(PopoverContent,{align:'end',variant:'menu',className:'w-64 max-w-[calc(100vw-1rem)] bg-(--ui-bg-elevated) p-1',children:content})]})})
 }
 function ComposerActions({controller}) {
-  const [enhancing,setEnhancing]=useState(false),[history,setHistory]=useState({canUndo:false,canRedo:false,busy:false}),[visibility,setVisibility]=useState(()=>({...controller.composerControls}))
+  const [enhancing,setEnhancing]=useState(false),[history,setHistory]=useState({canUndo:false,canRedo:false,busy:false}),[visibility,setVisibility]=useState(()=>({...controller.composerControls})),[version,setVersion]=useState(()=>normalizeRailLayoutVersion(controller.railLayoutVersion)),[tier,setTier]=useState(0),[libraryOpen,setLibraryOpen]=useState(false),[moreOpen,setMoreOpen]=useState(false),[moreView,setMoreView]=useState('root')
+  const railRef=useRef(null),voice=useControllerSnapshot(controller),voiceActive=['connecting','live','reconnecting','ending'].includes(voice.state)
   useEffect(()=>controller.subscribeComposerControls(value=>setVisibility({...value})),[controller])
+  useEffect(()=>controller.subscribeRailLayout?.(value=>setVersion(normalizeRailLayoutVersion(value)))||(()=>{}),[controller])
   useEffect(()=>{
     let live=true,sequence=0
     const refresh=async()=>{const seq=++sequence;try{const {owner}=await controller.enhancer.capture(),next=await controller.enhancer.status(owner);if(live&&seq===sequence)setHistory(next)}catch{if(live&&seq===sequence)setHistory({canUndo:false,canRedo:false,busy:false})}}
@@ -1257,12 +1435,25 @@ function ComposerActions({controller}) {
     void refresh()
     return()=>{live=false;++sequence;dispose();unsubscribers.forEach(fn=>fn())}
   },[controller])
-  const enhance=async()=>{if(enhancing)return;setEnhancing(true);try{await enhanceDraft(controller)}catch(error){host.notify({kind:'error',message:publicError(error)})}finally{setEnhancing(false)}}
-  const move=async fn=>{try{if(!await fn(controller))host.notify({kind:'info',message:'This draft changed after enhancement. Your edits have been preserved.'})}catch(error){host.notify({kind:'error',message:publicError(error)})}}
-  const action=(label,icon,callback,disabled=false)=>jsx('button',{type:'button',className:ACTION_CLASS,'aria-label':label,title:label,disabled,onMouseDown:event=>event.preventDefault(),onClick:callback,children:jsx(Codicon,{name:icon,size:'0.95rem'})})
-  const review=async()=>{if(enhancing)return;setEnhancing(true);try{await proposeEnhancement(controller)}catch(error){host.notify({kind:'error',message:publicError(error)})}finally{setEnhancing(false)}}
-  const show=(id,control)=>visibility[id]!==false?control:null
-  return jsxs(Fragment,{children:[show('voice',jsx(VoiceStatusPill,{controller})),show('voice-mode',jsx(VoiceInteractionModeChooser,{controller})),show('prompt-library',jsx(ComposerPromptMenu,{controller})),show('draft-shelf',jsx(ComposerDraftShelf,{controller})),show('review',action('Review enhancement','preview',review,enhancing||history.busy)),show('enhance',action(enhancing?'Enhancing draft':'Enhance draft',enhancing?'loading':'sparkle',enhance,enhancing||history.busy)),show('undo',action('Undo enhancement','discard',()=>move(undoEnhancement),enhancing||!history.canUndo)),show('redo',action('Redo enhancement','redo',()=>move(redoEnhancement),enhancing||!history.canRedo)),show('settings',action('Enchanted Composer settings','settings-gear',()=>host.navigate('/enchanted-composer')))]})
+  useEffect(()=>{
+    // Adaptive overflow measures only this plugin-owned container (no host DOM scraping).
+    const node=railRef.current
+    if(!node||typeof ResizeObserver==='undefined')return
+    const observer=new ResizeObserver(entries=>{const width=entries[0]?.contentRect?.width??0;setTier(railTierForWidth(width))})
+    observer.observe(node)
+    return()=>observer.disconnect()
+  },[])
+  const placements=railPlacements({visibility,version,tier,voiceActive})
+  const openLibrary=()=>{if(placements.rail.includes('library'))setLibraryOpen(true);else{setMoreView('library');setMoreOpen(true)}}
+  const items={
+    library:jsx(ComposerPromptMenu,{controller,open:libraryOpen,onOpenChange:setLibraryOpen},'library'),
+    compose:jsx('button',{type:'button',className:ACTION_CLASS,'aria-label':'Compose',title:'Compose · open the Composer workspace',onMouseDown:event=>event.preventDefault(),onClick:()=>host.navigate('/enchanted-composer'),children:jsx(ComposerIcon,{icon:'I01',size:16})},'compose'),
+    improve:jsx(ImproveMenu,{controller,enhancing,setEnhancing,history,onOpenLibrary:openLibrary},'improve'),
+    voice:jsx(VoiceStatusPill,{controller},'voice'),
+    'voice-capsule':jsx(VoiceStatusPill,{controller},'voice-capsule'),
+    more:jsx(MoreMenu,{controller,history,moreKeys:placements.more,open:moreOpen,onOpenChange:setMoreOpen,view:moreView,onViewChange:setMoreView},'more'),
+  }
+  return jsx('div',{ref:railRef,role:'group','aria-label':'Enchanted Composer actions',className:'inline-flex min-w-0 items-center gap-0.5',children:placements.rail.map(key=>items[key])})
 }
 /* COMPOSER_ACTIONS_END */
 /* REGISTER_START */
@@ -1307,13 +1498,15 @@ function createController(ctx) {
   const enhancer=new PromptEnhancer({draftAdapter:draft,ownerRouter,api:ctx,review:new EnhancementReview()}),draftShelf=new DraftShelfStore(ctx,{draftAdapter:draft,ownerRouter}),settingsStore=new ComposerSettingsStore(ctx)
   const delegation=new DelegationBridge({api:ctx,transcript}),resolver=new VoiceBackendResolver({'enchanted-realtime':new RealtimeVoiceAdapter(ctx,audio),'enchanted-bridge':new ComposerBridgeBackendAdapter(ctx,audio)})
   const voice=new LiveVoiceSessionController({ctx,ownerRouter,transcript,delegation,audio,resolver})
-  const interaction=new VoiceInteractionMode({setMuted:muted=>voice.setMuted(muted)}),controller={ctx,ownerRouter,transcript,audio,draft,enhancer,draftShelf,delegation,voice,interaction,settingsStore,settings:{...DEFAULT_SETTINGS},settingsOwner:null,voiceCatalog:null,library:validateLibrary(ctx.storage.get('library',null)||createLibrary()),libraryListeners:new Set(),composerControls:normalizeComposerControlVisibility(ctx.storage.get(COMPOSER_CONTROL_STORAGE_KEY,null)),composerControlListeners:new Set(),reviewProposal:null,reviewListeners:new Set(),
+  const interaction=new VoiceInteractionMode({setMuted:muted=>voice.setMuted(muted)}),controller={ctx,ownerRouter,transcript,audio,draft,enhancer,draftShelf,delegation,voice,interaction,settingsStore,settings:{...DEFAULT_SETTINGS},settingsOwner:null,voiceCatalog:null,library:validateLibrary(ctx.storage.get('library',null)||createLibrary()),libraryListeners:new Set(),composerControls:normalizeComposerControlVisibility(ctx.storage.get(COMPOSER_CONTROL_STORAGE_KEY,null)),composerControlListeners:new Set(),railLayoutVersion:normalizeRailLayoutVersion(ctx.storage.get(RAIL_LAYOUT_STORAGE_KEY,0)),railLayoutListeners:new Set(),reviewProposal:null,reviewListeners:new Set(),
     subscribeReviewProposal(listener){this.reviewListeners.add(listener);return()=>this.reviewListeners.delete(listener)},
     setReviewProposal(proposal){if(this.reviewProposal&&this.reviewProposal!==proposal)enhancer.discardProposal(this.reviewProposal);this.reviewProposal=proposal;for(const listener of this.reviewListeners)listener(proposal)},
     clearReviewProposal(proposal=this.reviewProposal){if(proposal!==this.reviewProposal)return false;this.reviewProposal=null;for(const listener of this.reviewListeners)listener(null);return true},
     saveLibrary(next){const value=validateLibrary(next);ctx.storage.set('library',value);this.library=value;for(const listener of this.libraryListeners)listener(value)},
     subscribeComposerControls(listener){this.composerControlListeners.add(listener);return()=>this.composerControlListeners.delete(listener)},
     setComposerControlVisibility(id,visible){if(!COMPOSER_CONTROL_DEFINITIONS.some(item=>item.id===id))throw new Error('Unknown composer control.');const next={...this.composerControls,[id]:visible===true};ctx.storage.set(COMPOSER_CONTROL_STORAGE_KEY,next);this.composerControls=next;for(const listener of this.composerControlListeners)listener(next);return next},
+    subscribeRailLayout(listener){this.railLayoutListeners.add(listener);return()=>this.railLayoutListeners.delete(listener)},
+    setRailLayoutVersion(value){const next=normalizeRailLayoutVersion(value);if(next!==1&&next!==2)throw new Error('Choose a valid rail layout.');ctx.storage.set(RAIL_LAYOUT_STORAGE_KEY,next);this.railLayoutVersion=next;for(const listener of this.railLayoutListeners)listener(next);return next},
     async saveSettings(patch,owner=this.settingsOwner){if(!owner)throw new Error('Load settings before editing.');const record=settingsStore.update(owner,patch);this.settings=record.value;return record},
     async refreshControlSurface(){
       const owner=await ownerRouter.capture({allowDraft:true});this.settingsOwner=owner
@@ -1335,7 +1528,7 @@ function createController(ctx) {
     },
     async retryVoice(){const session=await voice.retry();interaction.start();return session},
     async stopVoice(){await voice.stop();await interaction.cancel()},
-    async dispose(){if(this.reviewProposal)enhancer.discardProposal(this.reviewProposal);this.reviewProposal=null;this.reviewListeners.clear();this.composerControlListeners.clear();unsubscribeInteraction();await interaction.dispose();await voice.dispose();await settingsStore.dispose();enhancer.dispose();this.libraryListeners.clear()}
+    async dispose(){if(this.reviewProposal)enhancer.discardProposal(this.reviewProposal);this.reviewProposal=null;this.reviewListeners.clear();this.composerControlListeners.clear();this.railLayoutListeners.clear();unsubscribeInteraction();await interaction.dispose();await voice.dispose();await settingsStore.dispose();enhancer.dispose();this.libraryListeners.clear()}
   }
   const unsubscribeInteraction=voice.subscribe(snapshot=>{if(['idle','error'].includes(snapshot.state)&&interaction.callMode)void interaction.cancel()})
   return controller
