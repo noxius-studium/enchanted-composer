@@ -163,7 +163,7 @@ function MoreMenu({controller,history,moreKeys,open,onOpenChange,view,onViewChan
   if(moreKeys.includes('save-draft')){rows.push(group('Keep'));rows.push(jsx(ComposerDraftShelf,{controller,row:true},'save'))}
   if(moreKeys.includes('library')||moreKeys.includes('compose')){rows.push(group('Prepare'))
     if(moreKeys.includes('library'))rows.push(iconRow('library','I03','Prompt library',()=>onViewChange('library')))
-    if(moreKeys.includes('compose'))rows.push(iconRow('compose','I01','Compose',()=>nav()))}
+    if(moreKeys.includes('compose'))rows.push(iconRow('compose','I01','Compose',()=>{close();controller.openCompose('inline').catch(error=>host.notify({kind:'error',message:publicError(error)}))}))}
   if(moreKeys.includes('voice-mode')||moreKeys.includes('voice-start')){rows.push(group('Voice'))
     if(moreKeys.includes('voice-mode'))rows.push(jsx(VoiceInteractionModeChooser,{controller,row:true},'voice-mode'))
     if(moreKeys.includes('voice-start'))rows.push(iconRow('voice-start','I04','Start Live Voice',()=>{close();controller.startVoice().catch(error=>host.notify({kind:'error',message:publicError(error)}))}))}
@@ -201,7 +201,7 @@ function ComposerActions({controller}) {
   const openLibrary=()=>{if(placements.rail.includes('library'))setLibraryOpen(true);else{setMoreView('library');setMoreOpen(true)}}
   const items={
     library:jsx(ComposerPromptMenu,{controller,open:libraryOpen,onOpenChange:setLibraryOpen},'library'),
-    compose:jsx('button',{type:'button',className:ACTION_CLASS,'aria-label':'Compose',title:'Compose · open the Composer workspace',onMouseDown:event=>event.preventDefault(),onClick:()=>host.navigate('/enchanted-composer'),children:jsx(ComposerIcon,{icon:'I01',size:16})},'compose'),
+    compose:jsx('button',{type:'button',className:ACTION_CLASS,'aria-label':'Compose',title:'Compose · shape this request',onMouseDown:event=>event.preventDefault(),onClick:()=>controller.openCompose('inline').catch(error=>host.notify({kind:'error',message:publicError(error)})),children:jsx(ComposerIcon,{icon:'I01',size:16})},'compose'),
     improve:jsx(ImproveMenu,{controller,enhancing,setEnhancing,history,onOpenLibrary:openLibrary},'improve'),
     voice:jsx(VoiceStatusPill,{controller},'voice'),
     'voice-capsule':jsx(VoiceStatusPill,{controller},'voice-capsule'),

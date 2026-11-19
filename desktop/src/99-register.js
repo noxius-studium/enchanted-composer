@@ -40,7 +40,7 @@ function createController(ctx) {
   const enhancer=new PromptEnhancer({draftAdapter:draft,ownerRouter,api:ctx,review:new EnhancementReview()}),draftShelf=new DraftShelfStore(ctx,{draftAdapter:draft,ownerRouter}),settingsStore=new ComposerSettingsStore(ctx)
   const delegation=new DelegationBridge({api:ctx,transcript}),resolver=new VoiceBackendResolver({'enchanted-realtime':new RealtimeVoiceAdapter(ctx,audio),'enchanted-bridge':new ComposerBridgeBackendAdapter(ctx,audio)})
   const voice=new LiveVoiceSessionController({ctx,ownerRouter,transcript,delegation,audio,resolver})
-  const interaction=new VoiceInteractionMode({setMuted:muted=>voice.setMuted(muted)}),controller={ctx,ownerRouter,transcript,audio,draft,enhancer,draftShelf,delegation,voice,interaction,settingsStore,settings:{...DEFAULT_SETTINGS},settingsOwner:null,voiceCatalog:null,library:validateLibrary(ctx.storage.get('library',null)||createLibrary()),libraryListeners:new Set(),composerControls:normalizeComposerControlVisibility(ctx.storage.get(COMPOSER_CONTROL_STORAGE_KEY,null)),composerControlListeners:new Set(),railLayoutVersion:normalizeRailLayoutVersion(ctx.storage.get(RAIL_LAYOUT_STORAGE_KEY,0)),railLayoutListeners:new Set(),enhancementApplyMode:ctx.storage.get('enhancement-apply-mode','review')==='immediate'?'immediate':'review',enhancementApplyModeListeners:new Set(),historyOpen:false,historyListeners:new Set(),reviewProposal:null,reviewListeners:new Set(),
+  const interaction=new VoiceInteractionMode({setMuted:muted=>voice.setMuted(muted)}),controller={ctx,ownerRouter,transcript,audio,draft,enhancer,draftShelf,delegation,voice,interaction,settingsStore,settings:{...DEFAULT_SETTINGS},settingsOwner:null,voiceCatalog:null,library:validateLibrary(ctx.storage.get('library',null)||createLibrary()),libraryListeners:new Set(),composerControls:normalizeComposerControlVisibility(ctx.storage.get(COMPOSER_CONTROL_STORAGE_KEY,null)),composerControlListeners:new Set(),railLayoutVersion:normalizeRailLayoutVersion(ctx.storage.get(RAIL_LAYOUT_STORAGE_KEY,0)),railLayoutListeners:new Set(),enhancementApplyMode:ctx.storage.get('enhancement-apply-mode','review')==='immediate'?'immediate':'review',enhancementApplyModeListeners:new Set(),historyOpen:false,historyListeners:new Set(),brief:validateBrief(ctx.storage.get('compose-active-brief',null)||createBrief()),briefListeners:new Set(),composeMode:['inline','expanded'].includes(ctx.storage.get('compose-mode','closed'))?ctx.storage.get('compose-mode','closed'):'closed',composeListeners:new Set(),reviewProposal:null,reviewListeners:new Set(),
     subscribeReviewProposal(listener){this.reviewListeners.add(listener);return()=>this.reviewListeners.delete(listener)},
     setReviewProposal(proposal){if(this.reviewProposal&&this.reviewProposal!==proposal)enhancer.discardProposal(this.reviewProposal);this.reviewProposal=proposal;for(const listener of this.reviewListeners)listener(proposal)},
     clearReviewProposal(proposal=this.reviewProposal){if(proposal!==this.reviewProposal)return false;this.reviewProposal=null;for(const listener of this.reviewListeners)listener(null);return true},
@@ -54,6 +54,27 @@ function createController(ctx) {
     subscribeHistory(listener){this.historyListeners.add(listener);return()=>this.historyListeners.delete(listener)},
     setHistoryOpen(value){this.historyOpen=value===true;for(const listener of this.historyListeners)listener(this.historyOpen);return this.historyOpen},
     async cancelEnhancement(){const owner=await ownerRouter.capture({allowDraft:true,draftId:'composer'});return enhancer.cancelPending(owner)},
+    subscribeBrief(listener){this.briefListeners.add(listener);return()=>this.briefListeners.delete(listener)},
+    saveBrief(next){const value=validateBrief(next);ctx.storage.set('compose-active-brief',value);this.brief=value;for(const listener of this.briefListeners)listener(value);return value},
+    subscribeCompose(listener){this.composeListeners.add(listener);return()=>this.composeListeners.delete(listener)},
+    setComposeMode(mode){if(!['closed','inline','expanded'].includes(mode))throw new Error('Unknown Compose mode.');ctx.storage.set('compose-mode',mode);this.composeMode=mode;for(const listener of this.composeListeners)listener(mode);return mode},
+    closeCompose(){return this.setComposeMode('closed')},
+    async openCompose(mode='inline'){const owner=await ownerRouter.capture({allowDraft:true,draftId:'composer'}),surface=draft.capture();let sourceText='';try{sourceText=await draft.read(surface)}catch{}
+      const bound=briefChange(this.brief,{type:'owner',value:{connectionId:owner.connectionId,profile:owner.profile,storedSessionId:owner.storedSessionId,runtimeSessionId:owner.runtimeSessionId,surfaceId:surface.surfaceId}})
+      const seeded=!bound.text.trim()&&sourceText.trim()?briefChange(bound,{type:'text',value:sourceText}):bound
+      this.saveBrief(briefChange(seeded,{type:'source',value:sourceText}))
+      return this.setComposeMode(mode)},
+    async applyBriefToDraft(){const brief=this.brief;if(!brief.owner)throw new Error('Open Compose from a chat first.');if(!brief.text.trim())throw new Error('Write the request first.');
+      const built=buildBrief(brief),surface=draft.capture()
+      if(surface.surfaceId!==brief.owner.surfaceId)throw new Error('The focused chat changed. Your brief is saved here; it was not applied.')
+      const previous=await draft.read(surface)
+      await draft.compareAndReplace(previous,built.text,surface)
+      this.saveBrief(briefChange(brief,{type:'applied',value:{text:built.text,previous,surfaceId:surface.surfaceId,at:now()}}))
+      return built},
+    async undoBriefApply(){const brief=this.brief,applied=brief.lastApplied;if(!applied)throw new Error('Nothing to undo.');const surface=draft.capture()
+      if(surface.surfaceId!==applied.surfaceId)throw new Error('The focused draft changed. Undo was not applied.')
+      await draft.compareAndReplace(applied.text,applied.previous,surface)
+      this.saveBrief(briefChange(brief,{type:'applied',value:null}));return true},
     async saveSettings(patch,owner=this.settingsOwner){if(!owner)throw new Error('Load settings before editing.');const record=settingsStore.update(owner,patch);this.settings=record.value;return record},
     async refreshControlSurface(){
       const owner=await ownerRouter.capture({allowDraft:true});this.settingsOwner=owner
@@ -75,7 +96,7 @@ function createController(ctx) {
     },
     async retryVoice(){const session=await voice.retry();interaction.start();return session},
     async stopVoice(){await voice.stop();await interaction.cancel()},
-    async dispose(){if(this.reviewProposal)enhancer.discardProposal(this.reviewProposal);this.reviewProposal=null;this.reviewListeners.clear();this.composerControlListeners.clear();this.railLayoutListeners.clear();this.enhancementApplyModeListeners.clear();this.historyListeners.clear();unsubscribeInteraction();await interaction.dispose();await voice.dispose();await settingsStore.dispose();enhancer.dispose();this.libraryListeners.clear()}
+    async dispose(){if(this.reviewProposal)enhancer.discardProposal(this.reviewProposal);this.reviewProposal=null;this.reviewListeners.clear();this.composerControlListeners.clear();this.railLayoutListeners.clear();this.enhancementApplyModeListeners.clear();this.historyListeners.clear();this.briefListeners.clear();this.composeListeners.clear();unsubscribeInteraction();await interaction.dispose();await voice.dispose();await settingsStore.dispose();enhancer.dispose();this.libraryListeners.clear()}
   }
   const unsubscribeInteraction=voice.subscribe(snapshot=>{if(['idle','error'].includes(snapshot.state)&&interaction.callMode)void interaction.cancel()})
   return controller
@@ -84,6 +105,7 @@ export default {
   id:PLUGIN_ID,name:'Enchanted Composer',description:'Live voice, reusable prompts, and dependable draft enhancement.',defaultEnabled:false,
   register(ctx){
     const controller=createController(ctx)
+    ctx.register({id:'compose-inline',area:COMPOSER_AREAS.top,order:9,render:()=>jsx(ComposeInlinePanel,{controller})})
     ctx.register({id:'voice-transcript',area:COMPOSER_AREAS.top,order:10,render:()=>jsx(VoiceTranscriptPanel,{controller})})
     ctx.register({id:'voice-task-inspector',area:COMPOSER_AREAS.top,order:11,render:()=>jsx(VoiceTaskInspector,{controller})})
     ctx.register({id:'enhancement-review',area:COMPOSER_AREAS.top,order:11,render:()=>jsx(ComposerEnhancementReviewPanel,{controller})})

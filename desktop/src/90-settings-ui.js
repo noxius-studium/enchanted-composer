@@ -116,10 +116,12 @@ function ComposerControlsPanel({controller}) {
 }
 const SETTINGS_TABS=Object.freeze([['enhancement','Enhancement'],['prompts','Prompts'],['composer','Composer bar'],['voice','Voice'],['audio','Audio'],['usage','Account & usage']])
 function EnchantedComposerPage({controller}) {
-  const [tab,setTab]=useState(()=>{const hint=controller.ctx.storage.get('ec-settings-tab-hint',null);if(hint){controller.ctx.storage.remove?.('ec-settings-tab-hint');if(SETTINGS_TABS.some(([id])=>id===hint))return hint}return 'enhancement'}),[state,setState]=useState({loading:true,error:'',record:null}),[scan,setScan]=useState(false)
+  const [tab,setTab]=useState(()=>{const hint=controller.ctx.storage.get('ec-settings-tab-hint',null);if(hint){controller.ctx.storage.remove?.('ec-settings-tab-hint');if(SETTINGS_TABS.some(([id])=>id===hint))return hint}return 'enhancement'}),[state,setState]=useState({loading:true,error:'',record:null}),[scan,setScan]=useState(false),[composeMode,setComposeMode]=useState(()=>controller.composeMode)
   const mounted=useRef(false),generation=useRef(0)
   const refresh=async()=>{const gen=++generation.current;setState(previous=>({...previous,loading:true,error:''}));try{const data=await controller.refreshControlSurface();if(mounted.current&&gen===generation.current)setState({...data,record:{...data.record},loading:false,error:''})}catch(error){if(mounted.current&&gen===generation.current)setState(previous=>({...previous,loading:false,error:publicError(error)}))}}
   useEffect(()=>{mounted.current=true;void refresh();const unsubscribe=controller.settingsStore.subscribe(record=>{if(mounted.current)setState(previous=>previous.record?.key===record.key?{...previous,record:{...record}}:previous)});return()=>{mounted.current=false;++generation.current;unsubscribe()}},[controller])
+  useEffect(()=>controller.subscribeCompose?.(setComposeMode)||(()=>{}),[controller])
+  if(composeMode==='expanded')return jsx(ComposeWorkspace,{controller})
 
   const settings=state.record?.value||DEFAULT_SETTINGS,owner=state.owner
   const update=patch=>{if(!owner)return;try{controller.saveSettings(patch,owner).catch(error=>setState(previous=>({...previous,error:publicError(error)})))}catch(error){setState(previous=>({...previous,error:publicError(error)}))}}

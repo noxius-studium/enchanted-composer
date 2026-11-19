@@ -603,6 +603,106 @@ class DraftShelfStore {
   }
 }
 /* DRAFT_SHELF_END */
+/* BRIEF_MODEL_START */
+// Common brief model (SPECIFICATION.md §8). One state owner for inline and
+// expanded Compose. Build brief is deterministic local composition: zero
+// inference, no network, no transmission (spec §8.6/§15.5).
+const BRIEF_VERSION = 1
+const DELIVERABLES = Object.freeze([
+  { id: 'answer', label: 'Answer or analysis' },
+  { id: 'plan', label: 'Plan or agent handoff' },
+  { id: 'code', label: 'Working code or fix' },
+  { id: 'document', label: 'Finished document' },
+  { id: 'data', label: 'Structured data' },
+  { id: 'design', label: 'Design specification' },
+  { id: 'workflow', label: 'Repeatable workflow' },
+  { id: 'custom', label: 'Custom / Follow my wording' },
+])
+const BRIEF_QUESTIONS = Object.freeze([
+  { id: 'deliverable', prompt: 'What should the result be?', kind: 'deliverable' },
+  { id: 'audience', prompt: 'Who is this for?', options: ['Just me', 'My team', 'A customer', 'Another agent'] },
+  { id: 'constraints', prompt: 'Any fixed constraints or things to avoid?', options: ['No deployment', 'Keep it short', 'Use existing tools', 'None'] },
+  { id: 'format', prompt: 'Required output format?', options: ['Freeform', 'Markdown sections', 'Table', 'JSON', 'Agent handoff'] },
+])
+function createBrief(seed = {}) {
+  return {
+    version: BRIEF_VERSION,
+    id: typeof seed.id === 'string' && seed.id ? seed.id : `brief-${now()}-${Math.random().toString(36).slice(2, 8)}`,
+    title: bounded(seed.title, 128) || 'Untitled brief',
+    text: bounded(seed.text, 12000),
+    deliverable: DELIVERABLES.some(item => item.id === seed.deliverable) ? seed.deliverable : '',
+    customDeliverable: bounded(seed.customDeliverable, 200),
+    answers: seed.answers && typeof seed.answers === 'object' && !Array.isArray(seed.answers) ? Object.fromEntries(Object.entries(seed.answers).map(([key, value]) => [bounded(key, 64), bounded(value, 400)])) : {},
+    skipped: Array.isArray(seed.skipped) ? seed.skipped.filter(id => BRIEF_QUESTIONS.some(q => q.id === id)) : [],
+    revision: Number.isInteger(seed.revision) ? seed.revision : 0,
+    createdAt: Number.isFinite(seed.createdAt) ? seed.createdAt : now(),
+    updatedAt: now(),
+    owner: seed.owner && typeof seed.owner === 'object' ? seed.owner : null,
+    sourceText: bounded(seed.sourceText, 12000),
+    lastApplied: seed.lastApplied && typeof seed.lastApplied === 'object' ? seed.lastApplied : null,
+  }
+}
+function validateBrief(value) {
+  if (!value || typeof value !== 'object' || value.version !== BRIEF_VERSION) throw new Error('Invalid brief.')
+  return createBrief(value)
+}
+function unresolvedQuestions(brief) {
+  return BRIEF_QUESTIONS.filter(question => question.id === 'deliverable' ? !brief.deliverable : !(question.id in brief.answers) && !brief.skipped.includes(question.id))
+}
+// At most three unresolved questions visible at once (spec §8.4); the full
+// list stays inspectable — the visible limit never discards requirements.
+function visibleQuestions(brief) { return unresolvedQuestions(brief).slice(0, 3) }
+function briefRecommendation(brief) {
+  if (brief.deliverable) return null
+  const text = brief.text.toLowerCase()
+  if (/another agent|hand off|handoff|implement this|delegate/.test(text)) return { deliverable: 'plan', reason: 'Your request asks for work another agent can implement.' }
+  if (/\b(code|function|bug|fix|script|program|api)\b/.test(text)) return { deliverable: 'code', reason: 'Your request mentions working code.' }
+  if (/\b(write|document|report|article|email|post)\b/.test(text)) return { deliverable: 'document', reason: 'Your request asks for finished writing.' }
+  return { deliverable: 'answer', reason: 'A direct answer fits this request.' }
+}
+function briefChange(brief, action) {
+  const next = createBrief({ ...brief, revision: brief.revision + 1 })
+  if (action.type === 'title') next.title = bounded(action.value, 128) || 'Untitled brief'
+  else if (action.type === 'text') next.text = bounded(action.value, 12000)
+  else if (action.type === 'deliverable') {
+    if (!DELIVERABLES.some(item => item.id === action.value)) throw new Error('Unknown deliverable.')
+    next.deliverable = action.value
+    if (action.value !== 'custom') next.customDeliverable = ''
+  }
+  else if (action.type === 'custom-deliverable') next.customDeliverable = bounded(action.value, 200)
+  else if (action.type === 'answer') {
+    if (!BRIEF_QUESTIONS.some(question => question.id === action.id)) throw new Error('Unknown question.')
+    next.answers = { ...brief.answers, [action.id]: bounded(action.value, 400) }
+    next.skipped = brief.skipped.filter(id => id !== action.id)
+  }
+  else if (action.type === 'skip') {
+    if (!BRIEF_QUESTIONS.some(question => question.id === action.id)) throw new Error('Unknown question.')
+    next.skipped = [...new Set([...brief.skipped, action.id])]
+    next.answers = Object.fromEntries(Object.entries(brief.answers).filter(([key]) => key !== action.id))
+  }
+  else if (action.type === 'source') next.sourceText = bounded(action.value, 12000)
+  else if (action.type === 'owner') next.owner = action.value || null
+  else if (action.type === 'applied') next.lastApplied = action.value || null
+  else throw new Error('Invalid brief change.')
+  return next
+}
+// Deterministic build: approved material only. No inferred content, no hidden
+// warnings inserted into the deliverable (spec §8.7), zero model calls.
+function buildBrief(brief) {
+  const deliverable = DELIVERABLES.find(item => item.id === brief.deliverable)
+  const deliverableLabel = brief.deliverable === 'custom' ? (brief.customDeliverable || 'Custom deliverable') : (deliverable ? deliverable.label : 'Not chosen yet')
+  const lines = [`# ${brief.title}`, '', '## Goal', brief.text.trim() || '(No request text yet.)', '', '## Deliverable', deliverableLabel]
+  for (const question of BRIEF_QUESTIONS.filter(question => question.id !== 'deliverable')) {
+    const answer = brief.answers[question.id]
+    if (answer) lines.push('', `## ${question.prompt}`, answer)
+  }
+  const unresolved = unresolvedQuestions(brief)
+  if (unresolved.length) lines.push('', '## Unresolved questions', ...unresolved.map(question => `- ${question.prompt}`))
+  const skipped = BRIEF_QUESTIONS.filter(question => question.id !== 'deliverable' && brief.skipped.includes(question.id))
+  if (skipped.length) lines.push('', '## Skipped (use defaults)', ...skipped.map(question => `- ${question.prompt}`))
+  return { text: lines.join('\n').slice(0, 12000), unresolved: unresolved.map(question => question.id), modelCalls: 0, includedSources: [] }
+}
+/* BRIEF_MODEL_END */
 /* DRAFT_ADAPTER_START */
 class ComposerDraftAdapter {
   constructor(api=host) { this.api=api }
@@ -1309,10 +1409,12 @@ function ComposerControlsPanel({controller}) {
 }
 const SETTINGS_TABS=Object.freeze([['enhancement','Enhancement'],['prompts','Prompts'],['composer','Composer bar'],['voice','Voice'],['audio','Audio'],['usage','Account & usage']])
 function EnchantedComposerPage({controller}) {
-  const [tab,setTab]=useState(()=>{const hint=controller.ctx.storage.get('ec-settings-tab-hint',null);if(hint){controller.ctx.storage.remove?.('ec-settings-tab-hint');if(SETTINGS_TABS.some(([id])=>id===hint))return hint}return 'enhancement'}),[state,setState]=useState({loading:true,error:'',record:null}),[scan,setScan]=useState(false)
+  const [tab,setTab]=useState(()=>{const hint=controller.ctx.storage.get('ec-settings-tab-hint',null);if(hint){controller.ctx.storage.remove?.('ec-settings-tab-hint');if(SETTINGS_TABS.some(([id])=>id===hint))return hint}return 'enhancement'}),[state,setState]=useState({loading:true,error:'',record:null}),[scan,setScan]=useState(false),[composeMode,setComposeMode]=useState(()=>controller.composeMode)
   const mounted=useRef(false),generation=useRef(0)
   const refresh=async()=>{const gen=++generation.current;setState(previous=>({...previous,loading:true,error:''}));try{const data=await controller.refreshControlSurface();if(mounted.current&&gen===generation.current)setState({...data,record:{...data.record},loading:false,error:''})}catch(error){if(mounted.current&&gen===generation.current)setState(previous=>({...previous,loading:false,error:publicError(error)}))}}
   useEffect(()=>{mounted.current=true;void refresh();const unsubscribe=controller.settingsStore.subscribe(record=>{if(mounted.current)setState(previous=>previous.record?.key===record.key?{...previous,record:{...record}}:previous)});return()=>{mounted.current=false;++generation.current;unsubscribe()}},[controller])
+  useEffect(()=>controller.subscribeCompose?.(setComposeMode)||(()=>{}),[controller])
+  if(composeMode==='expanded')return jsx(ComposeWorkspace,{controller})
 
   const settings=state.record?.value||DEFAULT_SETTINGS,owner=state.owner
   const update=patch=>{if(!owner)return;try{controller.saveSettings(patch,owner).catch(error=>setState(previous=>({...previous,error:publicError(error)})))}catch(error){setState(previous=>({...previous,error:publicError(error)}))}}
@@ -1335,6 +1437,181 @@ function EnchantedComposerPage({controller}) {
     jsx('div',{role:'tabpanel',id:`ec-panel-${tab}`,'aria-labelledby':`ec-tab-${tab}`,children:jsx('fieldset',{disabled:state.loading&&!['prompts','enhancement'].includes(tab),style:{border:0,padding:0,margin:0,minWidth:0},children:panel})})]})
 }
 /* SETTINGS_UI_END */
+/* COMPOSE_WORKSPACE_START */
+// Compose surfaces (SPECIFICATION.md §7.0/§8). Inline and expanded share the
+// controller's single brief state. Opening never sends, transmits context, or
+// starts inference; Build brief is deterministic; Apply never sends.
+function useBrief(controller) {
+  const [brief, setBrief] = useState(() => controller.brief)
+  useEffect(() => controller.subscribeBrief(setBrief), [controller])
+  return brief
+}
+function useComposeMode(controller) {
+  const [mode, setMode] = useState(() => controller.composeMode)
+  useEffect(() => controller.subscribeCompose(setMode), [controller])
+  return mode
+}
+function briefActions(controller, setNotice) {
+  const change = action => { try { controller.saveBrief(briefChange(controller.brief, action)) } catch (error) { host.notify({ kind: 'error', message: publicError(error) }) } }
+  const apply = async () => { try { await controller.applyBriefToDraft(); setNotice('Applied to your draft. Nothing was sent.'); return true } catch (error) { setNotice(publicError(error)); return false } }
+  const undo = async () => { try { await controller.undoBriefApply(); setNotice('Undo applied. Your previous draft is back.') } catch (error) { setNotice(publicError(error)) } }
+  return { change, apply, undo }
+}
+function DeliverablePicker({ brief, change, compact = false }) {
+  const [query, setQuery] = useState(''), [showAll, setShowAll] = useState(false), [custom, setCustom] = useState('')
+  const needle = query.trim().toLowerCase()
+  const matches = DELIVERABLES.filter(item => !needle || item.label.toLowerCase().includes(needle))
+  const shown = showAll || needle ? matches : matches.slice(0, 3)
+  const recommendation = briefRecommendation(brief)
+  const [dismissed, setDismissed] = useState(false)
+  return jsxs('div', { children: [
+    recommendation && !dismissed ? jsxs('div', { className: 'mb-1 rounded-md border border-(--ui-stroke-secondary) bg-(--ui-control-active-background) p-1.5', children: [
+      jsxs('p', { children: [jsx('strong', { children: `Suggested: ${DELIVERABLES.find(item => item.id === recommendation.deliverable)?.label}` }), ' — ', recommendation.reason] }),
+      jsxs('div', { className: 'mt-1 flex gap-1', children: [
+        jsx(Button, { type: 'button', size: 'sm', onClick: () => change({ type: 'deliverable', value: recommendation.deliverable }), children: 'Use this' }),
+        jsx(Button, { type: 'button', size: 'sm', variant: 'ghost', onClick: () => setDismissed(true), children: 'Keep my choice' }),
+      ] }),
+    ] }) : null,
+    jsx('input', { type: 'search', value: query, onChange: event => setQuery(event.target.value), placeholder: 'Search deliverables', 'aria-label': 'Search deliverables', className: 'w-full rounded-md border border-(--ui-stroke-secondary) bg-(--ui-bg-elevated) p-1.5 text-xs text-foreground outline-none focus:border-(--ui-stroke-primary)' }),
+    jsx('div', { role: 'listbox', 'aria-label': 'Deliverable choices', className: 'mt-1 space-y-0.5', children: shown.map(item => jsx('button', { type: 'button', role: 'option', 'aria-selected': brief.deliverable === item.id, className: `block w-full rounded-md px-2 py-1.5 text-left text-xs ${brief.deliverable === item.id ? 'bg-(--ui-control-active-background)' : 'hover:bg-(--ui-control-active-background)'}`, onClick: () => change({ type: 'deliverable', value: item.id }), children: item.label }, item.id)) }),
+    !showAll && !needle && matches.length > 3 ? jsx(Button, { type: 'button', size: 'sm', variant: 'ghost', onClick: () => setShowAll(true), children: 'Search all' }) : null,
+    jsxs('div', { className: 'mt-1 flex gap-1', children: [
+      jsx('input', { value: custom, onChange: event => setCustom(event.target.value), placeholder: 'Write my own', 'aria-label': 'Custom deliverable', className: 'min-w-0 flex-1 rounded-md border border-(--ui-stroke-secondary) bg-(--ui-bg-elevated) p-1.5 text-xs text-foreground outline-none focus:border-(--ui-stroke-primary)' }),
+      jsx(Button, { type: 'button', size: 'sm', variant: 'ghost', disabled: !custom.trim(), onClick: () => { change({ type: 'deliverable', value: 'custom' }); change({ type: 'custom-deliverable', value: custom }) }, children: 'Use' }),
+    ] }),
+    compact ? null : jsx('p', { className: 'mt-1 text-(--ui-text-tertiary)', children: 'Choosing never sends anything. You can change this later.' }),
+  ] })
+}
+function QuestionBody({ brief, question, change }) {
+  const [custom, setCustom] = useState('')
+  if (question.id === 'deliverable') return jsx(DeliverablePicker, { brief, change })
+  return jsxs('div', { children: [
+    jsx('div', { className: 'space-y-0.5', children: question.options.map(option => jsx('button', { type: 'button', className: `block w-full rounded-md px-2 py-1.5 text-left text-xs ${brief.answers[question.id] === option ? 'bg-(--ui-control-active-background)' : 'hover:bg-(--ui-control-active-background)'}`, onClick: () => change({ type: 'answer', id: question.id, value: option }), children: option }, option)) }),
+    jsxs('div', { className: 'mt-1 flex gap-1', children: [
+      jsx('input', { value: custom, onChange: event => setCustom(event.target.value), placeholder: 'Write my own', 'aria-label': `Custom answer: ${question.prompt}`, className: 'min-w-0 flex-1 rounded-md border border-(--ui-stroke-secondary) bg-(--ui-bg-elevated) p-1.5 text-xs text-foreground outline-none focus:border-(--ui-stroke-primary)' }),
+      jsx(Button, { type: 'button', size: 'sm', variant: 'ghost', disabled: !custom.trim(), onClick: () => change({ type: 'answer', id: question.id, value: custom }), children: 'Use' }),
+    ] }),
+    jsxs('div', { className: 'mt-1 flex gap-1', children: [
+      jsx(Button, { type: 'button', size: 'sm', variant: 'ghost', onClick: () => change({ type: 'skip', id: question.id }), children: 'Skip' }),
+      jsx(Button, { type: 'button', size: 'sm', variant: 'ghost', onClick: () => change({ type: 'answer', id: question.id, value: 'Use default' }), children: 'Use default' }),
+    ] }),
+  ] })
+}
+function BriefPreview({ brief, onBack, onApply, onUndo, busy }) {
+  const built = buildBrief(brief)
+  return jsxs('div', { children: [
+    jsx('pre', { className: 'max-h-40 overflow-auto whitespace-pre-wrap rounded border border-(--ui-stroke-secondary) p-1.5 text-(--ui-text-secondary)', 'aria-label': 'Brief preview', children: built.text }),
+    jsxs('p', { className: 'mt-1 text-(--ui-text-tertiary)', children: [`Model calls: ${built.modelCalls}`, `Unresolved: ${built.unresolved.length}`, 'Destination: captured native draft', 'Included sources: none yet'].join(' · ') }),
+    jsxs('div', { className: 'mt-1 flex flex-wrap gap-1', children: [
+      onBack ? jsx(Button, { type: 'button', size: 'sm', variant: 'ghost', onClick: onBack, children: 'Back' }) : null,
+      jsx(Button, { type: 'button', size: 'sm', disabled: busy || !brief.text.trim(), onClick: onApply, children: 'Apply to draft' }),
+      brief.lastApplied ? jsx(Button, { type: 'button', size: 'sm', variant: 'ghost', disabled: busy, onClick: onUndo, children: 'Undo apply' }) : null,
+    ] }),
+  ] })
+}
+function ComposeInlinePanel({ controller }) {
+  const mode = useComposeMode(controller), brief = useBrief(controller)
+  const [showPreview, setShowPreview] = useState(false), [notice, setNotice] = useState(''), [busy, setBusy] = useState(false), [tooShort, setTooShort] = useState(false)
+  const panelRef = useRef(null)
+  const { change, apply, undo } = briefActions(controller, setNotice)
+  useEffect(() => {
+    const node = panelRef.current
+    if (!node || typeof ResizeObserver === 'undefined') return
+    const observer = new ResizeObserver(entries => { const height = entries[0]?.contentRect?.height ?? 0; setTooShort(height > 0 && height < 220) })
+    observer.observe(node)
+    return () => observer.disconnect()
+  }, [mode])
+  if (mode !== 'inline') return null
+  const open = unresolvedQuestions(brief), question = visibleQuestions(brief)[0]
+  const expand = () => { controller.setComposeMode('expanded'); host.navigate('/enchanted-composer') }
+  const runApply = async () => { if (busy) return; setBusy(true); await apply(); setBusy(false) }
+  return jsx('section', { ref: panelRef, role: 'region', 'aria-label': 'Shape request', className: 'mx-2 mb-1 max-h-[300px] overflow-auto rounded-md border border-(--ui-stroke-secondary) bg-(--ui-background) p-2 text-xs', children: jsxs(Fragment, { children: [
+    jsxs('div', { className: 'flex items-center justify-between gap-2', children: [
+      jsxs('span', { className: 'flex min-w-0 items-center gap-2', children: [jsx('strong', { children: 'Shape request' }), jsx('span', { className: 'truncate text-(--ui-text-tertiary)', children: open.length ? `${open.length} open question${open.length === 1 ? '' : 's'}` : 'Ready to build' })] }),
+      jsxs('span', { className: 'flex shrink-0 gap-1', children: [jsx(Button, { type: 'button', size: 'sm', variant: 'ghost', onClick: expand, children: 'Expand' }), jsx(Button, { type: 'button', size: 'sm', variant: 'ghost', onClick: () => controller.closeCompose(), children: 'Close' })] }),
+    ] }),
+    tooShort ? jsxs('p', { className: 'mt-1 text-(--ui-text-tertiary)', role: 'status', children: ['This pane is too short for inline shaping. ', jsx('button', { type: 'button', className: 'underline', onClick: expand, children: 'Open the expanded workspace' })] }) : null,
+    notice ? jsx('p', { className: 'mt-1 text-(--ui-text-secondary)', role: 'status', children: notice }) : null,
+    jsxs('div', { className: 'mt-1', children: [
+      showPreview ? jsx(BriefPreview, { brief, busy, onBack: () => setShowPreview(false), onApply: runApply, onUndo: undo })
+        : question ? jsxs(Fragment, { children: [jsx('p', { className: 'mb-1 font-medium', children: question.prompt }), jsx(QuestionBody, { brief, question, change })] })
+          : brief.text.trim() ? jsxs('div', { children: [jsx('p', { className: 'text-(--ui-text-secondary)', children: 'Your request is ready. Build the brief to preview exactly what will be applied.' }), jsx(Button, { type: 'button', size: 'sm', className: 'mt-1', onClick: () => setShowPreview(true), children: 'Build brief' })] })
+            : jsxs('div', { children: [jsx('p', { children: 'What do you want to make happen?' }), jsx(Button, { type: 'button', size: 'sm', variant: 'ghost', className: 'mt-1', onClick: expand, children: 'Start writing in the workspace' })] }),
+    ] }),
+    !showPreview && question && brief.text.trim() ? jsx('div', { className: 'mt-1 border-t border-(--ui-stroke-secondary) pt-1', children: jsx(Button, { type: 'button', size: 'sm', variant: 'ghost', onClick: () => setShowPreview(true), children: 'Build brief' }) }) : null,
+  ] }) })
+}
+function ComposeWorkspace({ controller }) {
+  const brief = useBrief(controller)
+  const [view, setView] = useState('compose'), [inspector, setInspector] = useState(false), [showPreview, setShowPreview] = useState(false), [notice, setNotice] = useState(''), [busy, setBusy] = useState(false)
+  const [saved, setSaved] = useState(() => controller.ctx.storage.get('compose-saved-briefs', []))
+  const editorRef = useRef(null)
+  const { change, apply, undo } = briefActions(controller, setNotice)
+  const open = unresolvedQuestions(brief)
+  const runApply = async () => { if (busy) return; setBusy(true); await apply(); setBusy(false) }
+  const persistSaved = list => { controller.ctx.storage.set('compose-saved-briefs', list); setSaved(list) }
+  const saveNamed = () => { persistSaved([...saved.filter(item => item.id !== brief.id), validateBrief({ ...brief })]); setNotice('Saved on this device.') }
+  const returnToChat = () => { controller.closeCompose(); host.navigate('/') }
+  const navButton = (id, label) => jsx('button', { type: 'button', 'aria-selected': view === id, className: `rounded-md px-2 py-1 text-xs ${view === id ? 'bg-(--ui-control-active-background) text-foreground' : 'text-(--ui-text-secondary)'}`, onClick: () => { setView(id); setShowPreview(false) }, children: label }, id)
+  const outline = brief.text.length > 400 ? jsxs('div', { className: 'mb-1 rounded-md border border-(--ui-stroke-secondary) p-1.5 text-(--ui-text-tertiary)', 'aria-label': 'Brief outline', children: ['Goal', brief.deliverable ? 'Deliverable' : null, Object.keys(brief.answers).length ? 'Constraints' : null, open.length ? `Unresolved (${open.length})` : null].filter(Boolean).join(' · ') }) : null
+  return jsxs('main', { className: 'flex min-h-[420px] flex-col gap-2 p-3 text-xs text-(--ui-text-primary)', 'aria-label': 'Compose workspace', children: [
+    jsxs('div', { className: 'flex flex-wrap items-center justify-between gap-2', children: [
+      jsxs('div', { role: 'tablist', 'aria-label': 'Compose navigation', className: 'flex gap-1', children: [navButton('compose', 'Compose'), navButton('library', 'Library'), navButton('saved', 'Saved')] }),
+      jsxs('div', { className: 'flex gap-1', children: [jsx(Button, { type: 'button', size: 'sm', variant: 'ghost', onClick: () => controller.closeCompose(), children: 'Settings' }), jsx(Button, { type: 'button', size: 'sm', variant: 'ghost', onClick: returnToChat, children: 'Return to chat' })] }),
+    ] }),
+    notice ? jsx('p', { role: 'status', className: 'text-(--ui-text-secondary)', children: notice }) : null,
+    view === 'library' ? jsx(PromptLibraryPanel, { controller }) : null,
+    view === 'saved' ? jsxs('section', { className: 'flex flex-col gap-2', children: [
+      jsxs('div', { className: 'flex items-center justify-between gap-2', children: [jsx('strong', { children: 'Saved briefs' }), jsx(Button, { type: 'button', size: 'sm', onClick: saveNamed, children: 'Save current brief' })] }),
+      jsx('p', { className: 'text-(--ui-text-tertiary)', children: 'Named briefs kept on this device. Versions and branches are coming to Saved work.' }),
+      !saved.length ? jsx('p', { className: 'text-(--ui-text-tertiary)', children: 'Nothing saved yet. Save the current brief to keep it here.' }) : null,
+      jsx('div', { className: 'space-y-1', children: saved.map(item => jsxs('div', { className: 'flex items-center justify-between gap-2 rounded-md border border-(--ui-stroke-secondary) p-2', children: [
+        jsxs('span', { className: 'min-w-0', children: [jsx('strong', { className: 'block truncate', children: item.title }), jsx('span', { className: 'text-(--ui-text-tertiary)', children: new Date(item.updatedAt).toLocaleString() })] }),
+        jsxs('span', { className: 'flex shrink-0 gap-1', children: [jsx(Button, { type: 'button', size: 'sm', variant: 'ghost', onClick: () => { controller.saveBrief(validateBrief(item)); setView('compose'); setNotice('Opened saved brief.') }, children: 'Open' }), jsx(Button, { type: 'button', size: 'sm', variant: 'ghost', onClick: () => persistSaved(saved.filter(row => row.id !== item.id)), children: 'Delete' })] }),
+      ] }, item.id)) }),
+    ] }) : null,
+    view === 'compose' ? jsxs(Fragment, { children: [
+      jsxs('div', { className: 'flex flex-wrap items-center gap-2', children: [
+        jsx('input', { value: brief.title, onChange: event => change({ type: 'title', value: event.target.value }), 'aria-label': 'Brief title', className: 'min-w-0 flex-1 rounded-md border border-(--ui-stroke-secondary) bg-(--ui-control-background,transparent) px-2 py-1 text-sm font-medium outline-none focus:border-(--ui-stroke-primary)' }),
+        jsx('span', { className: 'text-(--ui-text-tertiary)', children: 'Saved on device' }),
+        jsx(Button, { type: 'button', size: 'sm', variant: 'ghost', onClick: saveNamed, children: 'Save' }),
+      ] }),
+      outline,
+      !brief.text.trim() && !showPreview ? jsxs('div', { className: 'rounded-md border border-(--ui-stroke-secondary) p-3', children: [
+        jsx('p', { className: 'text-sm font-medium', children: 'What do you want to make happen?' }),
+        jsx('p', { className: 'mt-1 text-(--ui-text-tertiary)', children: 'Write freely, or shape the request with a few optional questions. Nothing is sent until you choose.' }),
+        jsxs('div', { className: 'mt-2 flex flex-wrap gap-1', children: [
+          jsx(Button, { type: 'button', size: 'sm', onClick: () => editorRef.current?.focus(), children: 'Start writing' }),
+          jsx(Button, { type: 'button', size: 'sm', variant: 'ghost', onClick: () => setInspector(true), children: 'Shape my request' }),
+          jsx(Button, { type: 'button', size: 'sm', variant: 'ghost', onClick: () => setView('library'), children: 'Use a saved recipe' }),
+        ] }),
+      ] }) : null,
+      showPreview ? jsx(BriefPreview, { brief, busy, onBack: () => setShowPreview(false), onApply: runApply, onUndo: undo }) : jsxs('div', { className: 'flex min-h-0 flex-1 gap-2', children: [
+        jsx('textarea', { ref: editorRef, value: brief.text, onChange: event => change({ type: 'text', value: event.target.value }), 'aria-label': 'Request editor', placeholder: 'Write the request…', className: 'min-h-[240px] min-w-0 flex-1 resize-y rounded-md border border-(--ui-stroke-secondary) bg-(--ui-control-background,transparent) p-2 text-sm leading-6 outline-none focus:border-(--ui-stroke-primary)' }),
+        inspector ? jsxs('aside', { className: 'w-64 shrink-0 space-y-2 overflow-auto rounded-md border border-(--ui-stroke-secondary) p-2', 'aria-label': 'Brief inspector', children: [
+          jsxs('div', { className: 'flex items-center justify-between gap-2', children: [jsx('strong', { children: 'Inspector' }), jsx(Button, { type: 'button', size: 'sm', variant: 'ghost', onClick: () => setInspector(false), children: 'Close' })] }),
+          open.length ? jsxs('div', { children: [jsx('p', { className: 'mb-1 font-medium', children: open[0].prompt }), jsx(QuestionBody, { brief, question: open[0], change })] }) : jsx('p', { className: 'text-(--ui-text-tertiary)', children: 'No open questions. Edit the deliverable any time.' }),
+          jsxs('div', { className: 'border-t border-(--ui-stroke-secondary) pt-1 text-(--ui-text-tertiary)', children: [
+            jsx('p', { children: `Deliverable: ${DELIVERABLES.find(item => item.id === brief.deliverable)?.label || 'not chosen'}` }),
+            ...Object.entries(brief.answers).map(([key, value]) => jsx('p', { children: `${BRIEF_QUESTIONS.find(q => q.id === key)?.prompt || key} ${value}` }, key)),
+            brief.skipped.length ? jsx('p', { children: `Skipped: ${brief.skipped.join(', ')}` }) : null,
+            jsx('p', { children: `Revision ${brief.revision}` }),
+          ] }),
+        ] }) : null,
+      ] }),
+      jsxs('div', { className: 'flex flex-wrap items-center justify-between gap-2 border-t border-(--ui-stroke-secondary) pt-2', children: [
+        jsxs('span', { className: 'text-(--ui-text-tertiary)', children: [open.length ? `${open.length} unresolved` : 'No unresolved questions', brief.lastApplied ? ' · applied to draft' : ''].join('') }),
+        jsxs('span', { className: 'flex flex-wrap gap-1', children: [
+          jsx(Button, { type: 'button', size: 'sm', variant: 'ghost', onClick: () => setInspector(value => !value), children: inspector ? 'Hide inspector' : 'Inspect' }),
+          brief.lastApplied ? jsx(Button, { type: 'button', size: 'sm', variant: 'ghost', disabled: busy, onClick: undo, children: 'Undo apply' }) : null,
+          jsx(Button, { type: 'button', size: 'sm', variant: 'ghost', onClick: () => setShowPreview(true), children: 'Preview brief' }),
+          jsx(Button, { type: 'button', size: 'sm', disabled: busy || !brief.text.trim(), onClick: runApply, children: 'Apply to draft' }),
+        ] }),
+      ] }),
+    ] }) : null,
+  ] })
+}
+/* COMPOSE_WORKSPACE_END */
 /* COMPOSER_ACTIONS_START */
 function useControllerSnapshot(controller) { const [state,setState]=useState(()=>controller.voice.snapshot());useEffect(()=>controller.voice.subscribe(setState),[controller]);return state }
 function useInteractionSnapshot(controller) { const [state,setState]=useState(()=>controller.interaction.snapshot());useEffect(()=>controller.interaction.subscribe(setState),[controller]);return state }
@@ -1500,7 +1777,7 @@ function MoreMenu({controller,history,moreKeys,open,onOpenChange,view,onViewChan
   if(moreKeys.includes('save-draft')){rows.push(group('Keep'));rows.push(jsx(ComposerDraftShelf,{controller,row:true},'save'))}
   if(moreKeys.includes('library')||moreKeys.includes('compose')){rows.push(group('Prepare'))
     if(moreKeys.includes('library'))rows.push(iconRow('library','I03','Prompt library',()=>onViewChange('library')))
-    if(moreKeys.includes('compose'))rows.push(iconRow('compose','I01','Compose',()=>nav()))}
+    if(moreKeys.includes('compose'))rows.push(iconRow('compose','I01','Compose',()=>{close();controller.openCompose('inline').catch(error=>host.notify({kind:'error',message:publicError(error)}))}))}
   if(moreKeys.includes('voice-mode')||moreKeys.includes('voice-start')){rows.push(group('Voice'))
     if(moreKeys.includes('voice-mode'))rows.push(jsx(VoiceInteractionModeChooser,{controller,row:true},'voice-mode'))
     if(moreKeys.includes('voice-start'))rows.push(iconRow('voice-start','I04','Start Live Voice',()=>{close();controller.startVoice().catch(error=>host.notify({kind:'error',message:publicError(error)}))}))}
@@ -1538,7 +1815,7 @@ function ComposerActions({controller}) {
   const openLibrary=()=>{if(placements.rail.includes('library'))setLibraryOpen(true);else{setMoreView('library');setMoreOpen(true)}}
   const items={
     library:jsx(ComposerPromptMenu,{controller,open:libraryOpen,onOpenChange:setLibraryOpen},'library'),
-    compose:jsx('button',{type:'button',className:ACTION_CLASS,'aria-label':'Compose',title:'Compose · open the Composer workspace',onMouseDown:event=>event.preventDefault(),onClick:()=>host.navigate('/enchanted-composer'),children:jsx(ComposerIcon,{icon:'I01',size:16})},'compose'),
+    compose:jsx('button',{type:'button',className:ACTION_CLASS,'aria-label':'Compose',title:'Compose · shape this request',onMouseDown:event=>event.preventDefault(),onClick:()=>controller.openCompose('inline').catch(error=>host.notify({kind:'error',message:publicError(error)})),children:jsx(ComposerIcon,{icon:'I01',size:16})},'compose'),
     improve:jsx(ImproveMenu,{controller,enhancing,setEnhancing,history,onOpenLibrary:openLibrary},'improve'),
     voice:jsx(VoiceStatusPill,{controller},'voice'),
     'voice-capsule':jsx(VoiceStatusPill,{controller},'voice-capsule'),
@@ -1589,7 +1866,7 @@ function createController(ctx) {
   const enhancer=new PromptEnhancer({draftAdapter:draft,ownerRouter,api:ctx,review:new EnhancementReview()}),draftShelf=new DraftShelfStore(ctx,{draftAdapter:draft,ownerRouter}),settingsStore=new ComposerSettingsStore(ctx)
   const delegation=new DelegationBridge({api:ctx,transcript}),resolver=new VoiceBackendResolver({'enchanted-realtime':new RealtimeVoiceAdapter(ctx,audio),'enchanted-bridge':new ComposerBridgeBackendAdapter(ctx,audio)})
   const voice=new LiveVoiceSessionController({ctx,ownerRouter,transcript,delegation,audio,resolver})
-  const interaction=new VoiceInteractionMode({setMuted:muted=>voice.setMuted(muted)}),controller={ctx,ownerRouter,transcript,audio,draft,enhancer,draftShelf,delegation,voice,interaction,settingsStore,settings:{...DEFAULT_SETTINGS},settingsOwner:null,voiceCatalog:null,library:validateLibrary(ctx.storage.get('library',null)||createLibrary()),libraryListeners:new Set(),composerControls:normalizeComposerControlVisibility(ctx.storage.get(COMPOSER_CONTROL_STORAGE_KEY,null)),composerControlListeners:new Set(),railLayoutVersion:normalizeRailLayoutVersion(ctx.storage.get(RAIL_LAYOUT_STORAGE_KEY,0)),railLayoutListeners:new Set(),enhancementApplyMode:ctx.storage.get('enhancement-apply-mode','review')==='immediate'?'immediate':'review',enhancementApplyModeListeners:new Set(),historyOpen:false,historyListeners:new Set(),reviewProposal:null,reviewListeners:new Set(),
+  const interaction=new VoiceInteractionMode({setMuted:muted=>voice.setMuted(muted)}),controller={ctx,ownerRouter,transcript,audio,draft,enhancer,draftShelf,delegation,voice,interaction,settingsStore,settings:{...DEFAULT_SETTINGS},settingsOwner:null,voiceCatalog:null,library:validateLibrary(ctx.storage.get('library',null)||createLibrary()),libraryListeners:new Set(),composerControls:normalizeComposerControlVisibility(ctx.storage.get(COMPOSER_CONTROL_STORAGE_KEY,null)),composerControlListeners:new Set(),railLayoutVersion:normalizeRailLayoutVersion(ctx.storage.get(RAIL_LAYOUT_STORAGE_KEY,0)),railLayoutListeners:new Set(),enhancementApplyMode:ctx.storage.get('enhancement-apply-mode','review')==='immediate'?'immediate':'review',enhancementApplyModeListeners:new Set(),historyOpen:false,historyListeners:new Set(),brief:validateBrief(ctx.storage.get('compose-active-brief',null)||createBrief()),briefListeners:new Set(),composeMode:['inline','expanded'].includes(ctx.storage.get('compose-mode','closed'))?ctx.storage.get('compose-mode','closed'):'closed',composeListeners:new Set(),reviewProposal:null,reviewListeners:new Set(),
     subscribeReviewProposal(listener){this.reviewListeners.add(listener);return()=>this.reviewListeners.delete(listener)},
     setReviewProposal(proposal){if(this.reviewProposal&&this.reviewProposal!==proposal)enhancer.discardProposal(this.reviewProposal);this.reviewProposal=proposal;for(const listener of this.reviewListeners)listener(proposal)},
     clearReviewProposal(proposal=this.reviewProposal){if(proposal!==this.reviewProposal)return false;this.reviewProposal=null;for(const listener of this.reviewListeners)listener(null);return true},
@@ -1603,6 +1880,27 @@ function createController(ctx) {
     subscribeHistory(listener){this.historyListeners.add(listener);return()=>this.historyListeners.delete(listener)},
     setHistoryOpen(value){this.historyOpen=value===true;for(const listener of this.historyListeners)listener(this.historyOpen);return this.historyOpen},
     async cancelEnhancement(){const owner=await ownerRouter.capture({allowDraft:true,draftId:'composer'});return enhancer.cancelPending(owner)},
+    subscribeBrief(listener){this.briefListeners.add(listener);return()=>this.briefListeners.delete(listener)},
+    saveBrief(next){const value=validateBrief(next);ctx.storage.set('compose-active-brief',value);this.brief=value;for(const listener of this.briefListeners)listener(value);return value},
+    subscribeCompose(listener){this.composeListeners.add(listener);return()=>this.composeListeners.delete(listener)},
+    setComposeMode(mode){if(!['closed','inline','expanded'].includes(mode))throw new Error('Unknown Compose mode.');ctx.storage.set('compose-mode',mode);this.composeMode=mode;for(const listener of this.composeListeners)listener(mode);return mode},
+    closeCompose(){return this.setComposeMode('closed')},
+    async openCompose(mode='inline'){const owner=await ownerRouter.capture({allowDraft:true,draftId:'composer'}),surface=draft.capture();let sourceText='';try{sourceText=await draft.read(surface)}catch{}
+      const bound=briefChange(this.brief,{type:'owner',value:{connectionId:owner.connectionId,profile:owner.profile,storedSessionId:owner.storedSessionId,runtimeSessionId:owner.runtimeSessionId,surfaceId:surface.surfaceId}})
+      const seeded=!bound.text.trim()&&sourceText.trim()?briefChange(bound,{type:'text',value:sourceText}):bound
+      this.saveBrief(briefChange(seeded,{type:'source',value:sourceText}))
+      return this.setComposeMode(mode)},
+    async applyBriefToDraft(){const brief=this.brief;if(!brief.owner)throw new Error('Open Compose from a chat first.');if(!brief.text.trim())throw new Error('Write the request first.');
+      const built=buildBrief(brief),surface=draft.capture()
+      if(surface.surfaceId!==brief.owner.surfaceId)throw new Error('The focused chat changed. Your brief is saved here; it was not applied.')
+      const previous=await draft.read(surface)
+      await draft.compareAndReplace(previous,built.text,surface)
+      this.saveBrief(briefChange(brief,{type:'applied',value:{text:built.text,previous,surfaceId:surface.surfaceId,at:now()}}))
+      return built},
+    async undoBriefApply(){const brief=this.brief,applied=brief.lastApplied;if(!applied)throw new Error('Nothing to undo.');const surface=draft.capture()
+      if(surface.surfaceId!==applied.surfaceId)throw new Error('The focused draft changed. Undo was not applied.')
+      await draft.compareAndReplace(applied.text,applied.previous,surface)
+      this.saveBrief(briefChange(brief,{type:'applied',value:null}));return true},
     async saveSettings(patch,owner=this.settingsOwner){if(!owner)throw new Error('Load settings before editing.');const record=settingsStore.update(owner,patch);this.settings=record.value;return record},
     async refreshControlSurface(){
       const owner=await ownerRouter.capture({allowDraft:true});this.settingsOwner=owner
@@ -1624,7 +1922,7 @@ function createController(ctx) {
     },
     async retryVoice(){const session=await voice.retry();interaction.start();return session},
     async stopVoice(){await voice.stop();await interaction.cancel()},
-    async dispose(){if(this.reviewProposal)enhancer.discardProposal(this.reviewProposal);this.reviewProposal=null;this.reviewListeners.clear();this.composerControlListeners.clear();this.railLayoutListeners.clear();this.enhancementApplyModeListeners.clear();this.historyListeners.clear();unsubscribeInteraction();await interaction.dispose();await voice.dispose();await settingsStore.dispose();enhancer.dispose();this.libraryListeners.clear()}
+    async dispose(){if(this.reviewProposal)enhancer.discardProposal(this.reviewProposal);this.reviewProposal=null;this.reviewListeners.clear();this.composerControlListeners.clear();this.railLayoutListeners.clear();this.enhancementApplyModeListeners.clear();this.historyListeners.clear();this.briefListeners.clear();this.composeListeners.clear();unsubscribeInteraction();await interaction.dispose();await voice.dispose();await settingsStore.dispose();enhancer.dispose();this.libraryListeners.clear()}
   }
   const unsubscribeInteraction=voice.subscribe(snapshot=>{if(['idle','error'].includes(snapshot.state)&&interaction.callMode)void interaction.cancel()})
   return controller
@@ -1633,6 +1931,7 @@ export default {
   id:PLUGIN_ID,name:'Enchanted Composer',description:'Live voice, reusable prompts, and dependable draft enhancement.',defaultEnabled:false,
   register(ctx){
     const controller=createController(ctx)
+    ctx.register({id:'compose-inline',area:COMPOSER_AREAS.top,order:9,render:()=>jsx(ComposeInlinePanel,{controller})})
     ctx.register({id:'voice-transcript',area:COMPOSER_AREAS.top,order:10,render:()=>jsx(VoiceTranscriptPanel,{controller})})
     ctx.register({id:'voice-task-inspector',area:COMPOSER_AREAS.top,order:11,render:()=>jsx(VoiceTaskInspector,{controller})})
     ctx.register({id:'enhancement-review',area:COMPOSER_AREAS.top,order:11,render:()=>jsx(ComposerEnhancementReviewPanel,{controller})})

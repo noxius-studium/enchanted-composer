@@ -110,7 +110,7 @@ test('legacy visibility is honored until the user chooses the new default; choic
 
 test('rail menus keep real operations, helper disclosure, focus return, and no host DOM scraping', () => {
   const actions = between('/* COMPOSER_ACTIONS_START */', '/* COMPOSER_ACTIONS_END */')
-  for (const token of ['Improve with recipe', 'Review changes before applying', 'Built-in recipes', 'Uses helper model', 'Nothing is sent to chat.', 'More actions', 'Undo enhancement', 'Redo enhancement', 'Save draft', 'Customize bar', 'Composer settings', 'Nothing to undo yet', 'Nothing to redo yet', 'Back to actions', 'Compose · open the Composer workspace']) assert.ok(actions.includes(token), token)
+  for (const token of ['Improve with recipe', 'Review changes before applying', 'Built-in recipes', 'Uses helper model', 'Nothing is sent to chat.', 'More actions', 'Undo enhancement', 'Redo enhancement', 'Save draft', 'Customize bar', 'Composer settings', 'Nothing to undo yet', 'Nothing to redo yet', 'Back to actions', 'Compose · shape this request']) assert.ok(actions.includes(token), token)
   assert.ok(actions.includes("triggerRef.current?.focus()"), 'menus return focus to their trigger')
   assert.doesNotMatch(actions, /document\.querySelector|document\.addEventListener|execCommand/)
   assert.ok(actions.includes('ResizeObserver'), 'adaptive overflow measures the plugin-owned rail container')

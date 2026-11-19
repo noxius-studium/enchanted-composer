@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="780" height="470" font-family="system-ui,sans-serif">
+  <rect width="100%" height="100%" fill="#fafafa"/>
+  <text x="20" y="26" font-size="14" font-weight="600" fill="#1c1e21">Compose journey wireframes (EC-R04 geometry fixture — not live-host acceptance)</text>
+  <text x="20" y="44" font-size="9" fill="#5c6166">Inline panel is bounded (max 300px) above the native input; expanded workspace is editor-dominant. Host send/model/attachment controls untouched and not shown.</text>
+
+  <text x="20" y="72" font-size="11" font-weight="600" fill="#1c1e21">Inline · Shape request (one open question)</text>
+  <rect x="20" y="82" width="360" height="180" rx="8" fill="#ffffff" stroke="#d7dade"/>
+  <text x="32" y="102" font-size="10" font-weight="600" fill="#1c1e21">Shape request · 1 open question</text>
+  <text x="270" y="102" font-size="9" fill="#5c6166">Expand   Close</text>
+  <line x1="20" y1="110" x2="380" y2="110" stroke="#e3e6ea"/>
+  <text x="32" y="128" font-size="9" fill="#1c1e21">What should the result be?</text>
+  <rect x="32" y="136" width="336" height="20" rx="4" fill="#eef1f4"/>
+  <text x="40" y="150" font-size="8.5" fill="#5c6166">Suggested: Plan or agent handoff — work another agent can implement.  Use this / Keep my choice</text>
+  <rect x="32" y="162" width="160" height="18" rx="4" fill="#ffffff" stroke="#d7dade"/>
+  <text x="40" y="175" font-size="8.5" fill="#1c1e21">Answer or analysis</text>
+  <rect x="198" y="162" width="170" height="18" rx="4" fill="#ffffff" stroke="#d7dade"/>
+  <text x="206" y="175" font-size="8.5" fill="#1c1e21">Working code or fix</text>
+  <text x="32" y="198" font-size="8.5" fill="#5c6166">Search all · Write my own</text>
+  <line x1="20" y1="212" x2="380" y2="212" stroke="#e3e6ea"/>
+  <text x="32" y="230" font-size="9" fill="#5c6166">Skip / Use default</text>
+  <rect x="280" y="218" width="88" height="20" rx="6" fill="#eef1f4"/>
+  <text x="292" y="232" font-size="9" fill="#1c1e21">Build brief</text>
+  <rect x="20" y="270" width="360" height="34" rx="8" fill="#ffffff" stroke="#d7dade"/>
+  <text x="32" y="291" font-size="9" fill="#5c6166">Native request editor — unchanged, still reachable</text>
+  <text x="300" y="291" font-size="9" fill="#1c1e21">Send ▸</text>
+
+  <text x="420" y="72" font-size="11" font-weight="600" fill="#1c1e21">Expanded · writing-centred workspace</text>
+  <rect x="420" y="82" width="340" height="330" rx="8" fill="#ffffff" stroke="#d7dade"/>
+  <text x="432" y="102" font-size="9" fill="#1c1e21">Compose  Library  Saved</text>
+  <text x="640" y="102" font-size="8.5" fill="#5c6166">Settings · Return to chat</text>
+  <line x1="420" y1="110" x2="760" y2="110" stroke="#e3e6ea"/>
+  <rect x="432" y="118" width="200" height="18" rx="4" fill="#ffffff" stroke="#d7dade"/>
+  <text x="440" y="131" font-size="9" fill="#1c1e21">Untitled brief (renameable)</text>
+  <text x="648" y="131" font-size="8" fill="#5c6166">Saved on device · Save</text>
+  <rect x="432" y="144" width="316" height="180" rx="4" fill="#ffffff" stroke="#d7dade"/>
+  <text x="440" y="160" font-size="9" fill="#5c6166">Write the request…</text>
+  <text x="440" y="176" font-size="8" fill="#9aa0a6">Dominant editor; optional outline only for structured content;</text>
+  <text x="440" y="188" font-size="8" fill="#9aa0a6">one inspector on demand (never steals text focus).</text>
+  <line x1="420" y1="336" x2="760" y2="336" stroke="#e3e6ea"/>
+  <text x="432" y="356" font-size="8.5" fill="#5c6166">1 unresolved</text>
+  <text x="520" y="356" font-size="8.5" fill="#5c6166">Inspect · Undo apply</text>
+  <rect x="630" y="344" width="60" height="18" rx="6" fill="#eef1f4"/>
+  <text x="638" y="357" font-size="8.5" fill="#1c1e21">Preview brief</text>
+  <rect x="694" y="344" width="54" height="18" rx="6" fill="#eef1f4"/>
+  <text x="700" y="357" font-size="8.5" fill="#1c1e21">Apply to draft</text>
+  <text x="432" y="386" font-size="8" fill="#5c6166">Build brief = deterministic local composition (0 model calls).</text>
+  <text x="432" y="398" font-size="8" fill="#5c6166">Apply writes only to the captured native draft; never sends.</text>
+
+  <text x="20" y="330" font-size="10" font-weight="600" fill="#1c1e21">States covered</text>
+  <text x="20" y="348" font-size="8.5" fill="#5c6166">empty · populated · unresolved question · long prose/code (scroll) ·</text>
+  <text x="20" y="362" font-size="8.5" fill="#5c6166">narrow (inspector becomes dismissible) · short pane (expanded fallback offered) ·</text>
+  <text x="20" y="376" font-size="8.5" fill="#5c6166">reopen saved local brief · owner drift (apply refused, brief kept) · undo apply.</text>
+  <text x="20" y="398" font-size="8.5" fill="#5c6166">Live-host geometry confirmation remains an open gate (user desktop).</text>
+</svg>
