@@ -664,10 +664,31 @@ class EnhancementReview {
     if(groups.length>this.maxGroups)return null
     return groups.map((group,index)=>({id:`change-${index+1}`,start:offsets[group.start],end:offsets[group.end],replacement:this._text(group.replacement)}))
   }
+  // Deterministic, local change descriptions (spec §9.1/§9.2). These are
+  // inferred heuristics, not semantic analysis; the UI labels them as such.
+  _label(before, after) {
+    const restriction = /\b(do not|don't|never|must not|must|avoid|without|only)\b/i
+    const identifier = /[\/\\][\w.-]+|\b\d+(?:\.\d+)?\b|\b[a-z][a-z0-9+.-]*:\/\/\S+|`[^`]+`|\b[A-Z]{2,}\b/g
+    const assumption = /\b(assume|assuming|assumption|probably|likely|presumably)\b/i
+    const format = /\b(json|table|markdown|csv|yaml|xml|deploy|execute|install|run)\b/i
+    if (restriction.test(before) && !restriction.test(after)) return { kind: 'restriction-removed', label: 'Removed a restriction', attention: true }
+    const beforeIds = (before.match(identifier) || []).join(' '), afterIds = (after.match(identifier) || []).join(' ')
+    if ((beforeIds || afterIds) && beforeIds !== afterIds) return { kind: 'identifier-changed', label: 'Changed a number, path, or identifier', attention: true }
+    if (!assumption.test(before) && assumption.test(after)) return { kind: 'assumption-added', label: 'Added an assumption', attention: true }
+    if (format.test(before) !== format.test(after)) return { kind: 'format-changed', label: 'Changed format or execution wording', attention: true }
+    if (after.length > before.length * 1.5 && after.length - before.length > 24) return { kind: 'scope-added', label: 'Added scope', attention: true }
+    if (!after.trim()) return { kind: 'removed', label: 'Removed text', attention: false }
+    if (!before.trim()) return { kind: 'added', label: 'Added text', attention: false }
+    return { kind: 'reworded', label: 'Reworded passage', attention: false }
+  }
   create({owner,surface,original,prompt,route,proposed}) {
-    const before=this._exact(original,'original'),after=this._text(proposed),groups=before===after?[]:this._changes(before,after),routeCopy={kind:this._exact(route?.kind,'route.kind')}
+    const before=this._exact(original,'original'),after=this._text(proposed),raw=before===after?[]:this._changes(before,after),routeCopy={kind:this._exact(route?.kind,'route.kind')}
     if(routeCopy.kind==='model')Object.assign(routeCopy,this._copy(route,['provider','model','reasoningEffort'],'route'))
-    return this._freeze({owner:this._copy(owner,['connectionId','profile','runtimeSessionId','storedSessionId'],'owner'),surface:this._copy(surface,['surfaceId','editor'],'surface'),original:before,prompt:this._copy(prompt,['id','name','body'],'prompt'),route:routeCopy,proposed:after,mode:groups===null?'whole':'groups',groups:groups||[]})
+    // Groups stay in positional order for compose(); reviewOrder is display-only
+    // (attention-first, spec §9.2) so selective application is never reordered.
+    const groups=(raw||[]).map(group=>Object.assign({},group,this._label(before.slice(group.start,group.end),group.replacement)))
+    const reviewOrder=groups.slice().sort((a,b)=>(b.attention?1:0)-(a.attention?1:0)||a.start-b.start).map(group=>group.id)
+    return this._freeze({owner:this._copy(owner,['connectionId','profile','runtimeSessionId','storedSessionId'],'owner'),surface:this._copy(surface,['surfaceId','editor'],'surface'),original:before,prompt:this._copy(prompt,['id','name','body'],'prompt'),route:routeCopy,proposed:after,mode:raw===null?'whole':'groups',groups,reviewOrder})
   }
   compose(proposal,selectedGroupIds=null) {
     if(!proposal||proposal.mode==='whole'||!Array.isArray(selectedGroupIds))return proposal?.proposed||''
@@ -681,7 +702,7 @@ class EnhancementReview {
 /* PROMPT_ENHANCER_START */
 class PromptEnhancer {
   constructor({draftAdapter,ownerRouter,api=host,review=null}) {
-    this.draft=draftAdapter;this.ownerRouter=ownerRouter;this.api=api;this.review=review;this.proposals=new WeakSet();this.applying=new WeakSet();this.histories=new Map();this.listeners=new Set();this.pending=new Set()
+    this.draft=draftAdapter;this.ownerRouter=ownerRouter;this.api=api;this.review=review;this.proposals=new WeakSet();this.applying=new WeakSet();this.histories=new Map();this.listeners=new Set();this.pending=new Set();this.cancelled=new Set()
   }
   key(owner,surfaceId) {
     // Saved chats survive editor remounts; unsent drafts stay surface-scoped.
@@ -689,6 +710,11 @@ class PromptEnhancer {
   }
   subscribe(fn) { this.listeners.add(fn);return()=>this.listeners.delete(fn) }
   _emit() { for(const fn of this.listeners)fn() }
+  // Cancellation discards the pending result before any write; the provider
+  // call itself may still complete. The source text is never touched.
+  cancelPending(owner) { const surface=this.draft.capture();this.cancelled.add(this.key(owner,surface.surfaceId));this._emit();return true }
+  _pushHistory(history,text,op) { history.values.push(text);history.ats.push(now());history.ops.push(op);if(history.values.length>31){history.values.shift();history.ats.shift();history.ops.shift()}history.index=history.values.length-1 }
+  _freshHistory(original) { return {values:[original],index:0,ats:[now()],ops:['Original']} }
   override(value) { if(!value||value.kind!=='model'||!bounded(value.provider,128)||!bounded(value.model,128))return null;return {provider:bounded(value.provider,128),model:bounded(value.model,128),reasoningEffort:bounded(value.reasoningEffort,16)} }
   async pinned(owner,original,instructions,override) {
     try{return await this.api.rest('/v1/enhance',{method:'POST',body:{owner,input:original,instructions,...override},timeoutMs:70000})}
@@ -708,8 +734,9 @@ class PromptEnhancer {
       if(!proposed.trim())throw new Error('Enhancement returned no text.')
       const current=this.draft.capture(),currentOwner=await this.ownerRouter.capture({allowDraft:true,draftId:current.surfaceId})
       if(current.surfaceId!==surface.surfaceId||await this.draft.read(surface)!==original||!this._sameOwner(currentOwner,owner))throw new Error('Composer changed while enhancing. Your draft was left untouched.')
+      if(this.cancelled.has(key))throw new Error('Enhancement cancelled. Your draft was left untouched.')
       const proposal=this.review.create({owner,surface:{surfaceId:surface.surfaceId},original,prompt,route:this._route(selection),proposed});this.proposals.add(proposal);return proposal
-    } finally { this.pending.delete(key);this._emit() }
+    } finally { this.pending.delete(key);this.cancelled.delete(key);this._emit() }
   }
   async status(owner) {
     try { const surface=this.draft.capture(),key=this.key(owner,surface.surfaceId),history=this.histories.get(key),text=await this.draft.read(surface)
@@ -730,16 +757,17 @@ class PromptEnhancer {
       if(!enhanced)throw new Error('Enhancement returned no text.')
       const current=this.draft.capture(),currentOwner=await this.ownerRouter.capture({allowDraft:true,draftId:current.surfaceId})
       if(current.editor!==surface.editor||await this.draft.read(surface)!==original||this.key(currentOwner,current.surfaceId)!==key)throw new Error('Composer changed while enhancing. Your draft was left untouched.')
+      if(this.cancelled.has(key))throw new Error('Enhancement cancelled. Your draft was left untouched.')
       let history=this.histories.get(key)
-      if(!history||history.values[history.index]!==original)history={values:[original],index:0}
+      if(!history||history.values[history.index]!==original)history=this._freshHistory(original)
       // Commit history only after the actual editor write succeeds.
       await this.draft.replace(enhanced,surface)
       const applied=await this.draft.read(surface)
       if(applied===original&&enhanced!==original)throw new Error('The editor did not accept the enhancement.')
-      if(applied!==original){history.values=history.values.slice(0,history.index+1);history.values.push(applied);if(history.values.length>31)history.values.shift();history.index=history.values.length-1;this.histories.delete(key);this.histories.set(key,history)}
+      if(applied!==original){history.values=history.values.slice(0,history.index+1);history.ats=history.ats.slice(0,history.index+1);history.ops=history.ops.slice(0,history.index+1);this._pushHistory(history,applied,'Enhancement');this.histories.delete(key);this.histories.set(key,history)}
       while(this.histories.size>50)this.histories.delete(this.histories.keys().next().value)
       return applied
-    } finally { this.pending.delete(key);this._emit() }
+    } finally { this.pending.delete(key);this.cancelled.delete(key);this._emit() }
   }
   insert(text) { return this.draft.insert(text) }
   discardProposal(proposal) { if(!proposal||!this.proposals.has(proposal))return false;this.proposals.delete(proposal);this._emit();return true }
@@ -755,11 +783,11 @@ class PromptEnhancer {
       const accepted=this.review.compose(proposal,selectedGroupIds)
       if(typeof accepted!=='string'||accepted.length>12000)throw new Error('Enhancement proposal is invalid.')
       let history=this.histories.get(key)
-      if(!history||history.values[history.index]!==proposal.original)history={values:[proposal.original],index:0}
+      if(!history||history.values[history.index]!==proposal.original)history=this._freshHistory(proposal.original)
       await this.draft.replace(accepted,surface)
       const applied=await this.draft.read(surface)
       if(applied===proposal.original&&accepted!==proposal.original)throw new Error('The editor did not accept the enhancement.')
-      if(applied!==proposal.original){history.values=history.values.slice(0,history.index+1);history.values.push(applied);if(history.values.length>31)history.values.shift();history.index=history.values.length-1;this.histories.delete(key);this.histories.set(key,history)}
+      if(applied!==proposal.original){history.values=history.values.slice(0,history.index+1);history.ats=history.ats.slice(0,history.index+1);history.ops=history.ops.slice(0,history.index+1);this._pushHistory(history,applied,'Review apply');this.histories.delete(key);this.histories.set(key,history)}
       while(this.histories.size>50)this.histories.delete(this.histories.keys().next().value)
       this.proposals.delete(proposal);this._emit();return applied
     } finally { this.applying.delete(proposal) }
@@ -775,7 +803,25 @@ class PromptEnhancer {
   }
   undoFor(owner) { return this._move(owner,-1) }
   redoFor(owner) { return this._move(owner,1) }
-  dispose() { this.histories.clear();this.proposals=new WeakSet();this.applying=new WeakSet();this.listeners.clear() }
+  // Read-only timeline snapshot for the history view (spec §9.5). In-memory,
+  // device-local; named saved versions are a separate Saved-work concern.
+  async historyFor(owner) {
+    try {
+      const surface=this.draft.capture(),key=this.key(owner,surface.surfaceId),history=this.histories.get(key),text=await this.draft.read(surface)
+      if(!history)return {entries:[],stale:true,canUndo:false,canRedo:false}
+      const stale=history.values[history.index]!==text
+      return {entries:history.values.map((value,index)=>({index,text:value,preview:value.slice(0,160),at:history.ats[index],op:history.ops[index],current:index===history.index})),stale,canUndo:!stale&&history.index>0,canRedo:!stale&&history.index<history.values.length-1}
+    } catch { return {entries:[],stale:true,canUndo:false,canRedo:false} }
+  }
+  async restoreTo(owner,index) {
+    const surface=this.draft.capture(),key=this.key(owner,surface.surfaceId),history=this.histories.get(key)
+    if(!history||this.pending.has(key)||!Number.isInteger(index)||index<0||index>=history.values.length||index===history.index)return false
+    if(await this.draft.read(surface)!==history.values[history.index])return false
+    await this.draft.replace(history.values[index],surface)
+    if(await this.draft.read(surface)!==history.values[index])throw new Error('The editor did not accept the history change.')
+    history.index=index;this._emit();return true
+  }
+  dispose() { this.histories.clear();this.proposals=new WeakSet();this.applying=new WeakSet();this.listeners.clear();this.cancelled.clear() }
 }
 /* PROMPT_ENHANCER_END */
 /* AUDIO_DEVICE_CONTROLLER_START */
@@ -1218,14 +1264,15 @@ function SettingsStatus({record,onRetry}) {
   return jsxs('div',{className:'ec-status',role:'status','aria-live':'polite',children:[jsx('span',{children:labels[record?.status]||'Loading…'}),record?.status==='error'?jsx(Button,{type:'button',size:'sm',variant:'ghost',onClick:onRetry,children:'Retry save'}):null]})
 }
 function EnhancementModelPanel({controller,catalog,error}) {
-  const [library,setLibrary]=useState(()=>controller.library),[providerDraft,setProviderDraft]=useState(null)
+  const [library,setLibrary]=useState(()=>controller.library),[providerDraft,setProviderDraft]=useState(null),[applyMode,setApplyMode]=useState(()=>controller.enhancementApplyMode||'review')
   useEffect(()=>{controller.libraryListeners.add(setLibrary);return()=>controller.libraryListeners.delete(setLibrary)},[controller])
+  useEffect(()=>controller.subscribeEnhancementApplyMode?.(setApplyMode)||(()=>{}),[controller])
   const chosen=library.enhanceWith,provider=providerDraft??(chosen.kind==='model'?chosen.provider:''),model=chosen.kind==='model'&&chosen.provider===provider?chosen.model:''
   const rows=catalog?.models||[],models=rows.filter(row=>row.provider===provider),current=models.find(row=>row.model===model)
   const save=value=>{try{controller.saveLibrary(libraryChange(controller.library,{type:'override',value}));setProviderDraft(null)}catch(reason){host.notify({kind:'error',message:publicError(reason)})}}
   return jsxs('section',{className:'ec-section',children:[jsx(PanelHeader,{title:'Make your draft clearer',description:'Enhance before sending—even in a new chat. Undo and redo stay with that draft.'}),error?jsx('p',{className:'ec-error',role:'alert',children:error}):null,
     jsx('div',{className:'ec-note',children:chosen.kind==='model'?`Using ${chosen.model} · ${chosen.provider}`:'Using the profile’s default enhancement route. No message is sent to chat.'}),
-    jsxs('div',{className:'ec-grid',children:[jsx(Field,{label:'Provider',children:jsx(ThemedSelect,{ariaLabel:'Enhancement provider',value:provider,options:[{value:'',label:'Profile default'},...(catalog?.providers||[]).filter(p=>rows.some(row=>row.provider===p.slug)).map(p=>({value:p.slug,label:p.name||p.slug}))],onChange:value=>{if(!value)save({kind:'session',reasoningEffort:''});else setProviderDraft(value)}})}),jsx(Field,{label:'Model',children:jsx(SearchableModelPicker,{options:models.map(row=>row.model),value:model,disabled:!provider,onChange:value=>save({kind:'model',provider,model:value,reasoningEffort:''})})}),jsx(Field,{label:'Thinking level',children:jsx(ThemedSelect,{ariaLabel:'Thinking level',value:chosen.kind==='model'?chosen.reasoningEffort:'',disabled:!current||current.capability?.reasoning===false,options:enhancementThinkingLevels(provider,model,current?.capability).map(value=>({value,label:value||'Provider default'})),onChange:value=>save({kind:'model',provider,model,reasoningEffort:value})})})]}),providerDraft?jsx('p',{className:'ec-muted',role:'status',children:'Choose a model to finish this selection. Your previous choice is still saved.'}):jsx('p',{className:'ec-muted',children:'Valid selections save automatically on this device. Prompts are managed in the next tab.'})]})
+    jsxs('div',{className:'ec-grid',children:[jsx(Field,{label:'Provider',children:jsx(ThemedSelect,{ariaLabel:'Enhancement provider',value:provider,options:[{value:'',label:'Profile default'},...(catalog?.providers||[]).filter(p=>rows.some(row=>row.provider===p.slug)).map(p=>({value:p.slug,label:p.name||p.slug}))],onChange:value=>{if(!value)save({kind:'session',reasoningEffort:''});else setProviderDraft(value)}})}),jsx(Field,{label:'Model',children:jsx(SearchableModelPicker,{options:models.map(row=>row.model),value:model,disabled:!provider,onChange:value=>save({kind:'model',provider,model:value,reasoningEffort:''})})}),jsx(Field,{label:'Thinking level',children:jsx(ThemedSelect,{ariaLabel:'Thinking level',value:chosen.kind==='model'?chosen.reasoningEffort:'',disabled:!current||current.capability?.reasoning===false,options:enhancementThinkingLevels(provider,model,current?.capability).map(value=>({value,label:value||'Provider default'})),onChange:value=>save({kind:'model',provider,model,reasoningEffort:value})})}),jsx(Field,{label:'Default application',children:jsx(ThemedSelect,{ariaLabel:'Default enhancement application',value:applyMode,options:[{value:'review',label:'Review changes first'},{value:'immediate',label:'Apply immediately'}],onChange:value=>{try{controller.setEnhancementApplyMode(value)}catch(reason){host.notify({kind:'error',message:publicError(reason)})}}})})]}),jsx('p',{className:'ec-muted',children:'Default application is saved on this device. New users default to review; immediate apply stays available from Improve.'}),providerDraft?jsx('p',{className:'ec-muted',role:'status',children:'Choose a model to finish this selection. Your previous choice is still saved.'}):jsx('p',{className:'ec-muted',children:'Valid selections save automatically on this device. Prompts are managed in the next tab.'})]})
 }
 function PromptLibraryPanel({controller}) {
   const [library,setLibrary]=useState(()=>controller.library),[editor,setEditor]=useState(()=>controller.ctx.storage.get('prompt-editor-draft',null)),[newLibrary,setNewLibrary]=useState(''),[notice,setNotice]=useState(''),[importText,setImportText]=useState(''),[preview,setPreview]=useState(null),[rollback,setRollback]=useState(null)
@@ -1317,12 +1364,50 @@ async function applyReviewProposal(controller,proposal,selectedGroupIds) { const
 function discardReviewProposal(controller,proposal) { controller.enhancer.discardProposal(proposal);controller.clearReviewProposal(proposal) }
 function useReviewProposal(controller) { const [proposal,setProposal]=useState(()=>controller.reviewProposal);useEffect(()=>controller.subscribeReviewProposal(setProposal),[controller]);return proposal }
 function ComposerEnhancementReviewPanel({controller}) {
-  const proposal=useReviewProposal(controller),[selected,setSelected]=useState(()=>new Set(proposal?.groups.map(group=>group.id)||[])),[busy,setBusy]=useState(false)
-  useEffect(()=>setSelected(new Set(proposal?.groups.map(group=>group.id)||[])),[proposal])
+  const proposal=useReviewProposal(controller),[selected,setSelected]=useState(()=>new Set(proposal?.groups.map(group=>group.id)||[])),[busy,setBusy]=useState(false),[view,setView]=useState('proposed'),[stale,setStale]=useState(false),[currentDraft,setCurrentDraft]=useState('')
+  useEffect(()=>{setSelected(new Set(proposal?.groups.map(group=>group.id)||[]));setView('proposed');setStale(false)},[proposal])
   if(!proposal)return null
   const groups=proposal.groups||[],whole=proposal.mode==='whole',toggle=id=>setSelected(current=>{const next=new Set(current);next.has(id)?next.delete(id):next.add(id);return next})
-  const apply=async ids=>{if(busy)return;setBusy(true);try{await applyReviewProposal(controller,proposal,ids)}catch(error){host.notify({kind:'error',message:publicError(error)})}finally{setBusy(false)}}
-  return jsx('section',{className:'mx-2 mb-1 rounded-md border border-(--ui-stroke-secondary) bg-(--ui-background) p-2 text-xs',role:'region','aria-label':'Enhancement review',children:jsxs(Fragment,{children:[jsxs('div',{className:'flex items-center justify-between gap-2',children:[jsx('strong',{children:'Review enhancement'}),jsx('span',{className:'text-(--ui-text-tertiary)',children:whole?'Full draft replacement':'Choose changes to apply'})]}),jsxs('div',{className:'mt-2 grid gap-2 md:grid-cols-2',children:[jsxs('label',{children:['Original draft',jsx('pre',{className:'mt-1 max-h-24 overflow-auto whitespace-pre-wrap rounded border border-(--ui-stroke-secondary) p-1 text-(--ui-text-secondary)',children:proposal.original})]}),jsxs('label',{children:['Proposed draft',jsx('pre',{className:'mt-1 max-h-24 overflow-auto whitespace-pre-wrap rounded border border-(--ui-stroke-secondary) p-1 text-(--ui-text-secondary)',children:proposal.proposed})]})]}),!whole?jsx('div',{className:'mt-2 max-h-24 space-y-1 overflow-auto',children:groups.map(group=>jsx('label',{className:'flex items-start gap-2',children:[jsx('input',{type:'checkbox',checked:selected.has(group.id),onChange:()=>toggle(group.id),'aria-label':`Select ${group.id}`}),jsx('span',{children:`${group.id} · ${proposal.original.slice(group.start,group.end)||'∅'} → ${group.replacement||'∅'}`})]},group.id))}):null,jsxs('div',{className:'mt-2 flex flex-wrap gap-2',children:[jsx(Button,{type:'button',size:'sm',disabled:busy||(!whole&&selected.size===0),onClick:()=>apply([...selected]),children:'Apply selected'}),jsx(Button,{type:'button',size:'sm',variant:'ghost',disabled:busy,onClick:()=>apply(null),children:'Apply all'}),jsx(Button,{type:'button',size:'sm',variant:'ghost',disabled:busy,onClick:()=>discardReviewProposal(controller,proposal),children:'Keep original'})]})]})})
+  const ordered=Array.isArray(proposal.reviewOrder)&&proposal.reviewOrder.length?proposal.reviewOrder.map(id=>groups.find(group=>group.id===id)).filter(Boolean):groups
+  const segments=[]
+  if(!whole){let cursor=0;for(const group of groups){if(!selected.has(group.id))continue;if(group.start>cursor)segments.push({text:proposal.original.slice(cursor,group.start),mark:false});segments.push({text:group.replacement,mark:true});cursor=group.end}if(cursor<proposal.original.length)segments.push({text:proposal.original.slice(cursor),mark:false})}
+  const apply=async ids=>{if(busy)return;setBusy(true);try{await applyReviewProposal(controller,proposal,ids);setStale(false)}catch(error){const message=publicError(error)
+    if(/composer changed since this proposal/i.test(message)){try{setCurrentDraft(await controller.draft.read(controller.draft.capture()))}catch{setCurrentDraft('')}setStale(true)}
+    else host.notify({kind:'error',message})}finally{setBusy(false)}}
+  const copyProposal=async()=>{try{await navigator.clipboard.writeText(proposal.proposed);host.notify({kind:'info',message:'Proposal copied. Your draft is unchanged.'})}catch{host.notify({kind:'error',message:'Copying is unavailable in this host.'})}}
+  const tab=(id,label)=>jsx('button',{type:'button',role:'tab','aria-selected':view===id,className:`rounded-md px-2 py-1 text-xs ${view===id?'bg-(--ui-control-active-background) text-foreground':'text-(--ui-text-secondary)'}`,onClick:()=>setView(id),children:label},id)
+  return jsx('section',{className:'mx-2 mb-1 rounded-md border border-(--ui-stroke-secondary) bg-(--ui-background) p-2 text-xs',role:'region','aria-label':'Enhancement review',children:jsxs(Fragment,{children:[
+    jsxs('div',{className:'flex flex-wrap items-center justify-between gap-2',children:[jsx('strong',{children:'Review enhancement'}),jsxs('div',{role:'tablist','aria-label':'Review views',className:'flex gap-1',children:[tab('proposed','Proposed'),tab('changes','Changes'),tab('original','Original')]})]}),
+    stale?jsxs('div',{role:'alert',className:'mt-2 rounded-md border border-(--ui-stroke-secondary) bg-(--ui-control-active-background) p-2',children:[jsx('p',{children:'Your draft changed. Compare before applying.'}),jsxs('div',{className:'mt-1 flex flex-wrap gap-2',children:[jsx(Button,{type:'button',size:'sm',variant:'ghost',onClick:()=>setView('changes'),children:'Compare'}),jsx(Button,{type:'button',size:'sm',variant:'ghost',onClick:copyProposal,children:'Copy proposal'}),jsx(Button,{type:'button',size:'sm',variant:'ghost',onClick:()=>discardReviewProposal(controller,proposal),children:'Cancel'})]})]}):null,
+    view==='proposed'?jsxs('div',{className:'mt-2',children:[jsx('pre',{className:'max-h-40 overflow-auto whitespace-pre-wrap rounded border border-(--ui-stroke-secondary) p-1 text-(--ui-text-secondary)','aria-label':'Proposed draft',children:whole?proposal.proposed:segments.map((segment,index)=>segment.mark?jsx('mark',{className:'rounded-sm bg-(--ui-control-active-background) text-foreground',children:segment.text},index):jsx('span',{children:segment.text},index))}),!whole&&selected.size<groups.length?jsx('p',{className:'mt-1 text-(--ui-text-tertiary)',children:'Preview recomputes the actual combination of your selected changes.'}):null]}):null,
+    view==='changes'?jsxs('div',{className:'mt-2',children:[
+      jsx('p',{className:'text-(--ui-text-tertiary)',children:whole?'Full draft replacement':'Choose changes to apply. Descriptions are inferred from the diff, not semantic analysis.'}),
+      stale?jsxs('div',{className:'mt-1 grid gap-2 md:grid-cols-2',children:[jsxs('label',{children:['Original draft',jsx('pre',{className:'mt-1 max-h-24 overflow-auto whitespace-pre-wrap rounded border border-(--ui-stroke-secondary) p-1 text-(--ui-text-secondary)',children:proposal.original})]}),jsxs('label',{children:['Your current draft',jsx('pre',{className:'mt-1 max-h-24 overflow-auto whitespace-pre-wrap rounded border border-(--ui-stroke-secondary) p-1 text-(--ui-text-secondary)',children:currentDraft})]})]}):null,
+      !whole?jsx('div',{className:'mt-1 max-h-40 space-y-1 overflow-auto',children:ordered.map(group=>jsxs('label',{className:'flex items-start gap-2 rounded border border-(--ui-stroke-secondary) p-1.5',children:[jsx('input',{type:'checkbox',checked:selected.has(group.id),onChange:()=>toggle(group.id),'aria-label':`Select ${group.id}`}),jsxs('span',{className:'min-w-0',children:[jsxs('span',{className:'flex flex-wrap items-center gap-1',children:[group.attention?jsx('span',{'aria-hidden':true,children:'⚠'}):null,jsx('strong',{children:group.label||'Changed passage'}),group.attention?jsx('span',{className:'text-(--ui-text-tertiary)',children:'· needs attention'}):null]}),jsx('span',{className:'block truncate text-(--ui-text-tertiary)',children:`${group.id} · ${proposal.original.slice(group.start,group.end).slice(0,80)||'∅'} → ${(group.replacement||'∅').slice(0,80)}`})]})]},group.id))}):null,
+    ]}):null,
+    view==='original'?jsx('pre',{className:'mt-2 max-h-40 overflow-auto whitespace-pre-wrap rounded border border-(--ui-stroke-secondary) p-1 text-(--ui-text-secondary)','aria-label':'Original draft',children:proposal.original}):null,
+    jsxs('div',{className:'mt-2 flex flex-wrap gap-2',children:[jsx(Button,{type:'button',size:'sm',disabled:busy||stale||(!whole&&selected.size===0),onClick:()=>apply([...selected]),children:'Apply selected'}),jsx(Button,{type:'button',size:'sm',variant:'ghost',disabled:busy||stale,onClick:()=>apply(null),children:'Apply all'}),jsx(Button,{type:'button',size:'sm',variant:'ghost',disabled:busy,onClick:()=>discardReviewProposal(controller,proposal),children:'Keep original'})]})]})})
+}
+function EnhancementHistoryPanel({controller}) {
+  const [open,setOpen]=useState(()=>controller.historyOpen===true),[snapshot,setSnapshot]=useState(null),[preview,setPreview]=useState(null),[busy,setBusy]=useState(false)
+  useEffect(()=>controller.subscribeHistory?.(value=>setOpen(value===true))||(()=>{}),[controller])
+  useEffect(()=>{if(!open)return;let live=true
+    const refresh=async()=>{try{const owner=await controller.ownerRouter.capture({allowDraft:true,draftId:'composer'}),next=await controller.enhancer.historyFor(owner);if(live)setSnapshot(next)}catch{if(live)setSnapshot({entries:[],stale:true})}}
+    void refresh();const dispose=controller.enhancer.subscribe(refresh);return()=>{live=false;dispose()}
+  },[open,controller])
+  if(!open)return null
+  const restore=async index=>{if(busy)return;setBusy(true);try{const owner=await controller.ownerRouter.capture({allowDraft:true,draftId:'composer'});if(!await controller.enhancer.restoreTo(owner,index))host.notify({kind:'info',message:'Your draft changed. History restore was not applied.'})}catch(error){host.notify({kind:'error',message:publicError(error)})}finally{setBusy(false)}}
+  return jsx('section',{role:'region','aria-label':'Enhancement history',className:'mx-2 mb-1 rounded-md border border-(--ui-stroke-secondary) bg-(--ui-background) p-2 text-xs',children:jsxs(Fragment,{children:[
+    jsxs('div',{className:'flex items-center justify-between gap-2',children:[jsx('strong',{children:'Enhancement history'}),jsx(Button,{type:'button',size:'sm',variant:'ghost',onClick:()=>controller.setHistoryOpen(false),children:'Close'})]}),
+    jsx('p',{className:'py-1 text-(--ui-text-tertiary)',children:'In-memory history for this draft on this device. Named saved versions arrive with Saved work; typing undo stays with the editor.'}),
+    snapshot?.stale&&snapshot.entries.length?jsx('p',{role:'status',className:'text-(--ui-text-tertiary)',children:'Your draft changed outside enhancement. Restore is unavailable until it matches again.'}):null,
+    !snapshot?.entries.length?jsx('p',{className:'text-(--ui-text-tertiary)',children:'No enhancement history for this draft yet.'}):null,
+    jsx('ol',{className:'max-h-48 space-y-1 overflow-auto',children:(snapshot?.entries||[]).map(entry=>jsxs('li',{className:'rounded border border-(--ui-stroke-secondary) p-1.5',children:[
+      jsxs('div',{className:'flex items-center justify-between gap-2',children:[jsxs('span',{children:[`${entry.op} · ${new Date(entry.at).toLocaleTimeString()}`,entry.current?' · current':'']}),jsx(Button,{type:'button',size:'sm',variant:'ghost',disabled:busy||entry.current||snapshot.stale,onClick:()=>restore(entry.index),children:'Restore'})]}),
+      jsx('button',{type:'button',className:'block w-full truncate text-left text-(--ui-text-secondary)',onClick:()=>setPreview(preview===entry.index?null:entry.index),children:entry.preview||'(empty)'}),
+      preview===entry.index?jsx('pre',{className:'mt-1 max-h-24 overflow-auto whitespace-pre-wrap text-(--ui-text-secondary)',children:entry.text}):null,
+    ]},entry.index))}),
+  ]})})
 }
 function ComposerDraftShelf({controller,row=false}) {
   const save=async()=>{try{const owner=await controller.ownerRouter.capture({allowDraft:true,draftId:'composer'}),surface=controller.draft.capture(),text=await controller.draft.read(surface);controller.draftShelf.save(owner,surface,{name:'Untitled draft',text});if(row)host.notify({kind:'info',message:'Draft saved on this device.'})}catch(error){host.notify({kind:'error',message:publicError(error)})}}
@@ -1376,19 +1461,24 @@ function MoreLibraryView({controller,onBack,onDone}) {
   ]})
 }
 function ImproveMenu({controller,enhancing,setEnhancing,history,onOpenLibrary}) {
-  const [open,setOpen]=useState(false),triggerRef=useRef(null),library=controller.library,active=library.prompts.find(prompt=>prompt.id===library.activePromptId)
+  const [open,setOpen]=useState(false),[applyMode,setApplyMode]=useState(()=>controller.enhancementApplyMode||'review'),triggerRef=useRef(null),library=controller.library,active=library.prompts.find(prompt=>prompt.id===library.activePromptId)
+  useEffect(()=>controller.subscribeEnhancementApplyMode?.(setApplyMode)||(()=>{}),[controller])
   const close=()=>{setOpen(false);queueMicrotask(()=>triggerRef.current?.focus())}
   const run=async fn=>{if(enhancing)return;setEnhancing(true);try{await fn(controller);close()}catch(error){host.notify({kind:'error',message:publicError(error)})}finally{setEnhancing(false)}}
   const runBuiltin=async id=>{const prompt=controller.library.prompts.find(item=>item.id===id);if(!prompt){host.notify({kind:'error',message:'That built-in recipe is missing from your library.'});return}
     if(enhancing)return;setEnhancing(true);try{const {owner}=await controller.enhancer.capture();await controller.enhancer.enhance(owner,prompt,controller.library.enhanceWith);close()}catch(error){host.notify({kind:'error',message:publicError(error)})}finally{setEnhancing(false)}}
-  const label=enhancing?'Enhancing draft':'Enhance draft',busy=enhancing||history.busy
+  const label=enhancing?'Enhancing draft':'Enhance draft',busy=enhancing||history.busy,triggerDisabled=history.busy
   const row=(key,text,onClick,detail='')=>jsxs('button',{type:'button',role:'menuitem',className:MENU_ROW_CLASS,disabled:busy,onClick,children:[jsx('span',{className:'min-w-0 flex-1 truncate',children:text}),detail?jsx('span',{className:'text-[10px] text-(--ui-text-tertiary)',children:detail}):null]},key)
   return jsx(Popover,{open,onOpenChange:next=>next?setOpen(true):close(),children:jsxs(Fragment,{children:[
-    jsx(PopoverTrigger,{asChild:true,children:jsxs('button',{ref:triggerRef,type:'button',className:`${ACTION_CLASS} w-auto gap-1 px-1.5`,'aria-label':label,title:label,'aria-haspopup':'menu','aria-expanded':open,disabled:busy,onMouseDown:event=>event.preventDefault(),children:[enhancing?jsx(Codicon,{name:'loading',size:'0.95rem'}):jsx(ComposerIcon,{icon:'I02',size:16}),jsx('span',{className:'text-xs',children:enhancing?'Enhancing':'Improve'}),jsx(Codicon,{name:'chevron-down',size:'0.7rem'})]})}),
-    jsx(PopoverContent,{align:'end',variant:'menu',className:'w-72 max-w-[calc(100vw-1rem)] bg-(--ui-bg-elevated) p-1',children:jsxs('div',{role:'menu','aria-label':'Improve',children:[
-      jsxs('div',{className:'flex items-center justify-between gap-2 px-2 py-1.5 text-xs text-(--ui-text-secondary)',children:[jsxs('span',{className:'min-w-0 truncate',children:['Recipe: ',jsx('strong',{children:active?.name||'none'})]}),jsx(Button,{type:'button',size:'sm',variant:'ghost',onClick:()=>{close();onOpenLibrary()},children:'Change'})]}),
-      row('primary','Improve with recipe',()=>run(enhanceDraft),'Uses helper model'),
-      row('review','Review changes before applying',()=>run(proposeEnhancement),'Uses helper model'),
+    jsx(PopoverTrigger,{asChild:true,children:jsxs('button',{ref:triggerRef,type:'button',className:`${ACTION_CLASS} w-auto gap-1 px-1.5`,'aria-label':label,title:label,'aria-haspopup':'menu','aria-expanded':open,disabled:triggerDisabled,onMouseDown:event=>event.preventDefault(),children:[enhancing?jsx(Codicon,{name:'loading',size:'0.95rem'}):jsx(ComposerIcon,{icon:'I02',size:16}),jsx('span',{className:'text-xs',children:enhancing?'Enhancing':'Improve'}),jsx(Codicon,{name:'chevron-down',size:'0.7rem'})]})}),
+    jsx(PopoverContent,{align:'end',variant:'menu',className:'w-72 max-w-[calc(100vw-1rem)] bg-(--ui-bg-elevated) p-1',children:jsxs('div',{role:'menu','aria-label':'Improve',children:enhancing?[
+      jsx('p',{className:'px-2 py-1.5 text-xs text-(--ui-text-secondary)',role:'status',children:'Enhancing draft…'},'status'),
+      row('cancel','Cancel enhancement',()=>{controller.cancelEnhancement().catch(error=>host.notify({kind:'error',message:publicError(error)}));close()}),
+      jsx('p',{className:MENU_NOTE_CLASS,children:'Cancel stops applying the result. Your draft stays untouched.'},'cancel-note'),
+    ]:[
+      jsxs('div',{className:'flex items-center justify-between gap-2 px-2 py-1.5 text-xs text-(--ui-text-secondary)',children:[jsxs('span',{className:'min-w-0 truncate',children:['Recipe: ',jsx('strong',{children:active?.name||'none'})]}),jsx(Button,{type:'button',size:'sm',variant:'ghost',onClick:()=>{close();onOpenLibrary()},children:'Change'})]},'recipe'),
+      applyMode==='review'?row('primary','Improve with recipe',()=>run(proposeEnhancement),'Review first'):row('primary','Improve with recipe',()=>run(enhanceDraft),'Applies immediately'),
+      applyMode==='review'?row('immediate','Apply immediately this time',()=>run(enhanceDraft),'Uses helper model'):row('review','Review changes before applying',()=>run(proposeEnhancement),'Uses helper model'),
       jsx('div',{className:MENU_GROUP_CLASS,children:'Built-in recipes'}),
       ...DEFAULT_PROMPTS.map(([id,name])=>row(id,name,()=>runBuiltin(id))),
       jsx('div',{className:MENU_GROUP_CLASS,children:'Configure'}),
@@ -1403,9 +1493,10 @@ function MoreMenu({controller,history,moreKeys,open,onOpenChange,view,onViewChan
   const group=label=>jsx('div',{className:MENU_GROUP_CLASS,children:label},`g-${label}`)
   const iconRow=(key,icon,text,onClick,disabled=false,title=text)=>jsxs('button',{type:'button',role:'menuitem',className:MENU_ROW_CLASS,disabled,title,onClick,children:[jsx(ComposerIcon,{icon,size:16}),jsx('span',{children:text})]},key)
   const rows=[]
-  if(moreKeys.includes('undo')||moreKeys.includes('redo')){rows.push(group('Continue'))
-    if(moreKeys.includes('undo'))rows.push(iconRow('undo','I08','Undo enhancement',()=>{close();void moveEnhancement(controller,undoEnhancement)},!history.canUndo||history.busy,history.canUndo?'Undo enhancement':'Nothing to undo yet'))
-    if(moreKeys.includes('redo'))rows.push(iconRow('redo','I09','Redo enhancement',()=>{close();void moveEnhancement(controller,redoEnhancement)},!history.canRedo||history.busy,history.canRedo?'Redo enhancement':'Nothing to redo yet'))}
+  rows.push(group('Continue'))
+  if(moreKeys.includes('undo'))rows.push(iconRow('undo','I08','Undo enhancement',()=>{close();void moveEnhancement(controller,undoEnhancement)},!history.canUndo||history.busy,history.canUndo?'Undo enhancement':'Nothing to undo yet'))
+  if(moreKeys.includes('redo'))rows.push(iconRow('redo','I09','Redo enhancement',()=>{close();void moveEnhancement(controller,redoEnhancement)},!history.canRedo||history.busy,history.canRedo?'Redo enhancement':'Nothing to redo yet'))
+  rows.push(iconRow('history','I11','Enhancement history',()=>{close();controller.setHistoryOpen(true)}))
   if(moreKeys.includes('save-draft')){rows.push(group('Keep'));rows.push(jsx(ComposerDraftShelf,{controller,row:true},'save'))}
   if(moreKeys.includes('library')||moreKeys.includes('compose')){rows.push(group('Prepare'))
     if(moreKeys.includes('library'))rows.push(iconRow('library','I03','Prompt library',()=>onViewChange('library')))
@@ -1498,7 +1589,7 @@ function createController(ctx) {
   const enhancer=new PromptEnhancer({draftAdapter:draft,ownerRouter,api:ctx,review:new EnhancementReview()}),draftShelf=new DraftShelfStore(ctx,{draftAdapter:draft,ownerRouter}),settingsStore=new ComposerSettingsStore(ctx)
   const delegation=new DelegationBridge({api:ctx,transcript}),resolver=new VoiceBackendResolver({'enchanted-realtime':new RealtimeVoiceAdapter(ctx,audio),'enchanted-bridge':new ComposerBridgeBackendAdapter(ctx,audio)})
   const voice=new LiveVoiceSessionController({ctx,ownerRouter,transcript,delegation,audio,resolver})
-  const interaction=new VoiceInteractionMode({setMuted:muted=>voice.setMuted(muted)}),controller={ctx,ownerRouter,transcript,audio,draft,enhancer,draftShelf,delegation,voice,interaction,settingsStore,settings:{...DEFAULT_SETTINGS},settingsOwner:null,voiceCatalog:null,library:validateLibrary(ctx.storage.get('library',null)||createLibrary()),libraryListeners:new Set(),composerControls:normalizeComposerControlVisibility(ctx.storage.get(COMPOSER_CONTROL_STORAGE_KEY,null)),composerControlListeners:new Set(),railLayoutVersion:normalizeRailLayoutVersion(ctx.storage.get(RAIL_LAYOUT_STORAGE_KEY,0)),railLayoutListeners:new Set(),reviewProposal:null,reviewListeners:new Set(),
+  const interaction=new VoiceInteractionMode({setMuted:muted=>voice.setMuted(muted)}),controller={ctx,ownerRouter,transcript,audio,draft,enhancer,draftShelf,delegation,voice,interaction,settingsStore,settings:{...DEFAULT_SETTINGS},settingsOwner:null,voiceCatalog:null,library:validateLibrary(ctx.storage.get('library',null)||createLibrary()),libraryListeners:new Set(),composerControls:normalizeComposerControlVisibility(ctx.storage.get(COMPOSER_CONTROL_STORAGE_KEY,null)),composerControlListeners:new Set(),railLayoutVersion:normalizeRailLayoutVersion(ctx.storage.get(RAIL_LAYOUT_STORAGE_KEY,0)),railLayoutListeners:new Set(),enhancementApplyMode:ctx.storage.get('enhancement-apply-mode','review')==='immediate'?'immediate':'review',enhancementApplyModeListeners:new Set(),historyOpen:false,historyListeners:new Set(),reviewProposal:null,reviewListeners:new Set(),
     subscribeReviewProposal(listener){this.reviewListeners.add(listener);return()=>this.reviewListeners.delete(listener)},
     setReviewProposal(proposal){if(this.reviewProposal&&this.reviewProposal!==proposal)enhancer.discardProposal(this.reviewProposal);this.reviewProposal=proposal;for(const listener of this.reviewListeners)listener(proposal)},
     clearReviewProposal(proposal=this.reviewProposal){if(proposal!==this.reviewProposal)return false;this.reviewProposal=null;for(const listener of this.reviewListeners)listener(null);return true},
@@ -1507,6 +1598,11 @@ function createController(ctx) {
     setComposerControlVisibility(id,visible){if(!COMPOSER_CONTROL_DEFINITIONS.some(item=>item.id===id))throw new Error('Unknown composer control.');const next={...this.composerControls,[id]:visible===true};ctx.storage.set(COMPOSER_CONTROL_STORAGE_KEY,next);this.composerControls=next;for(const listener of this.composerControlListeners)listener(next);return next},
     subscribeRailLayout(listener){this.railLayoutListeners.add(listener);return()=>this.railLayoutListeners.delete(listener)},
     setRailLayoutVersion(value){const next=normalizeRailLayoutVersion(value);if(next!==1&&next!==2)throw new Error('Choose a valid rail layout.');ctx.storage.set(RAIL_LAYOUT_STORAGE_KEY,next);this.railLayoutVersion=next;for(const listener of this.railLayoutListeners)listener(next);return next},
+    subscribeEnhancementApplyMode(listener){this.enhancementApplyModeListeners.add(listener);return()=>this.enhancementApplyModeListeners.delete(listener)},
+    setEnhancementApplyMode(value){if(value!=='review'&&value!=='immediate')throw new Error('Choose review or immediate application.');ctx.storage.set('enhancement-apply-mode',value);this.enhancementApplyMode=value;for(const listener of this.enhancementApplyModeListeners)listener(value);return value},
+    subscribeHistory(listener){this.historyListeners.add(listener);return()=>this.historyListeners.delete(listener)},
+    setHistoryOpen(value){this.historyOpen=value===true;for(const listener of this.historyListeners)listener(this.historyOpen);return this.historyOpen},
+    async cancelEnhancement(){const owner=await ownerRouter.capture({allowDraft:true,draftId:'composer'});return enhancer.cancelPending(owner)},
     async saveSettings(patch,owner=this.settingsOwner){if(!owner)throw new Error('Load settings before editing.');const record=settingsStore.update(owner,patch);this.settings=record.value;return record},
     async refreshControlSurface(){
       const owner=await ownerRouter.capture({allowDraft:true});this.settingsOwner=owner
@@ -1528,7 +1624,7 @@ function createController(ctx) {
     },
     async retryVoice(){const session=await voice.retry();interaction.start();return session},
     async stopVoice(){await voice.stop();await interaction.cancel()},
-    async dispose(){if(this.reviewProposal)enhancer.discardProposal(this.reviewProposal);this.reviewProposal=null;this.reviewListeners.clear();this.composerControlListeners.clear();this.railLayoutListeners.clear();unsubscribeInteraction();await interaction.dispose();await voice.dispose();await settingsStore.dispose();enhancer.dispose();this.libraryListeners.clear()}
+    async dispose(){if(this.reviewProposal)enhancer.discardProposal(this.reviewProposal);this.reviewProposal=null;this.reviewListeners.clear();this.composerControlListeners.clear();this.railLayoutListeners.clear();this.enhancementApplyModeListeners.clear();this.historyListeners.clear();unsubscribeInteraction();await interaction.dispose();await voice.dispose();await settingsStore.dispose();enhancer.dispose();this.libraryListeners.clear()}
   }
   const unsubscribeInteraction=voice.subscribe(snapshot=>{if(['idle','error'].includes(snapshot.state)&&interaction.callMode)void interaction.cancel()})
   return controller
@@ -1540,6 +1636,7 @@ export default {
     ctx.register({id:'voice-transcript',area:COMPOSER_AREAS.top,order:10,render:()=>jsx(VoiceTranscriptPanel,{controller})})
     ctx.register({id:'voice-task-inspector',area:COMPOSER_AREAS.top,order:11,render:()=>jsx(VoiceTaskInspector,{controller})})
     ctx.register({id:'enhancement-review',area:COMPOSER_AREAS.top,order:11,render:()=>jsx(ComposerEnhancementReviewPanel,{controller})})
+    ctx.register({id:'enhancement-history',area:COMPOSER_AREAS.top,order:12,render:()=>jsx(EnhancementHistoryPanel,{controller})})
     ctx.register({id:'actions',area:COMPOSER_AREAS.actions,order:10,render:()=>jsx(ComposerActions,{controller})})
     ctx.register({id:'route',area:ROUTES_AREA,order:25,data:{path:'/enchanted-composer'},render:()=>jsx(EnchantedComposerPage,{controller})})
     ctx.register({id:'legacy-route',area:ROUTES_AREA,order:25,data:{path:'/composer-enhancements'},render:()=>jsx(EnchantedComposerPage,{controller})})

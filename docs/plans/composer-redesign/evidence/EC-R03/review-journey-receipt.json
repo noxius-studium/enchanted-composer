@@ -1,0 +1,63 @@
+{
+  "fixture": true,
+  "helper_reply": "scripted stand-in, not a live model call",
+  "steps": [
+    {
+      "step": "propose",
+      "groups": [
+        {
+          "id": "change-1",
+          "kind": "reworded",
+          "label": "Reworded passage",
+          "attention": false
+        },
+        {
+          "id": "change-2",
+          "kind": "restriction-removed",
+          "label": "Removed a restriction",
+          "attention": true
+        },
+        {
+          "id": "change-3",
+          "kind": "identifier-changed",
+          "label": "Changed a number, path, or identifier",
+          "attention": true
+        }
+      ],
+      "reviewOrder": [
+        "change-2",
+        "change-3",
+        "change-1"
+      ]
+    },
+    {
+      "step": "apply-selected (reworded only)",
+      "draft": "Compose a summary. Do not deploy. Count 3 items.",
+      "preserved": [
+        "Do not deploy.",
+        "Count 3 items."
+      ]
+    },
+    {
+      "step": "history",
+      "entries": [
+        {
+          "op": "Original",
+          "current": false
+        },
+        {
+          "op": "Review apply",
+          "current": true
+        }
+      ]
+    },
+    {
+      "step": "undo",
+      "draft": "Write a summary. Do not deploy. Count 3 items."
+    },
+    {
+      "step": "restore-to-applied",
+      "draft": "Compose a summary. Do not deploy. Count 3 items."
+    }
+  ]
+}

@@ -27,12 +27,50 @@ async function applyReviewProposal(controller,proposal,selectedGroupIds) { const
 function discardReviewProposal(controller,proposal) { controller.enhancer.discardProposal(proposal);controller.clearReviewProposal(proposal) }
 function useReviewProposal(controller) { const [proposal,setProposal]=useState(()=>controller.reviewProposal);useEffect(()=>controller.subscribeReviewProposal(setProposal),[controller]);return proposal }
 function ComposerEnhancementReviewPanel({controller}) {
-  const proposal=useReviewProposal(controller),[selected,setSelected]=useState(()=>new Set(proposal?.groups.map(group=>group.id)||[])),[busy,setBusy]=useState(false)
-  useEffect(()=>setSelected(new Set(proposal?.groups.map(group=>group.id)||[])),[proposal])
+  const proposal=useReviewProposal(controller),[selected,setSelected]=useState(()=>new Set(proposal?.groups.map(group=>group.id)||[])),[busy,setBusy]=useState(false),[view,setView]=useState('proposed'),[stale,setStale]=useState(false),[currentDraft,setCurrentDraft]=useState('')
+  useEffect(()=>{setSelected(new Set(proposal?.groups.map(group=>group.id)||[]));setView('proposed');setStale(false)},[proposal])
   if(!proposal)return null
   const groups=proposal.groups||[],whole=proposal.mode==='whole',toggle=id=>setSelected(current=>{const next=new Set(current);next.has(id)?next.delete(id):next.add(id);return next})
-  const apply=async ids=>{if(busy)return;setBusy(true);try{await applyReviewProposal(controller,proposal,ids)}catch(error){host.notify({kind:'error',message:publicError(error)})}finally{setBusy(false)}}
-  return jsx('section',{className:'mx-2 mb-1 rounded-md border border-(--ui-stroke-secondary) bg-(--ui-background) p-2 text-xs',role:'region','aria-label':'Enhancement review',children:jsxs(Fragment,{children:[jsxs('div',{className:'flex items-center justify-between gap-2',children:[jsx('strong',{children:'Review enhancement'}),jsx('span',{className:'text-(--ui-text-tertiary)',children:whole?'Full draft replacement':'Choose changes to apply'})]}),jsxs('div',{className:'mt-2 grid gap-2 md:grid-cols-2',children:[jsxs('label',{children:['Original draft',jsx('pre',{className:'mt-1 max-h-24 overflow-auto whitespace-pre-wrap rounded border border-(--ui-stroke-secondary) p-1 text-(--ui-text-secondary)',children:proposal.original})]}),jsxs('label',{children:['Proposed draft',jsx('pre',{className:'mt-1 max-h-24 overflow-auto whitespace-pre-wrap rounded border border-(--ui-stroke-secondary) p-1 text-(--ui-text-secondary)',children:proposal.proposed})]})]}),!whole?jsx('div',{className:'mt-2 max-h-24 space-y-1 overflow-auto',children:groups.map(group=>jsx('label',{className:'flex items-start gap-2',children:[jsx('input',{type:'checkbox',checked:selected.has(group.id),onChange:()=>toggle(group.id),'aria-label':`Select ${group.id}`}),jsx('span',{children:`${group.id} · ${proposal.original.slice(group.start,group.end)||'∅'} → ${group.replacement||'∅'}`})]},group.id))}):null,jsxs('div',{className:'mt-2 flex flex-wrap gap-2',children:[jsx(Button,{type:'button',size:'sm',disabled:busy||(!whole&&selected.size===0),onClick:()=>apply([...selected]),children:'Apply selected'}),jsx(Button,{type:'button',size:'sm',variant:'ghost',disabled:busy,onClick:()=>apply(null),children:'Apply all'}),jsx(Button,{type:'button',size:'sm',variant:'ghost',disabled:busy,onClick:()=>discardReviewProposal(controller,proposal),children:'Keep original'})]})]})})
+  const ordered=Array.isArray(proposal.reviewOrder)&&proposal.reviewOrder.length?proposal.reviewOrder.map(id=>groups.find(group=>group.id===id)).filter(Boolean):groups
+  const segments=[]
+  if(!whole){let cursor=0;for(const group of groups){if(!selected.has(group.id))continue;if(group.start>cursor)segments.push({text:proposal.original.slice(cursor,group.start),mark:false});segments.push({text:group.replacement,mark:true});cursor=group.end}if(cursor<proposal.original.length)segments.push({text:proposal.original.slice(cursor),mark:false})}
+  const apply=async ids=>{if(busy)return;setBusy(true);try{await applyReviewProposal(controller,proposal,ids);setStale(false)}catch(error){const message=publicError(error)
+    if(/composer changed since this proposal/i.test(message)){try{setCurrentDraft(await controller.draft.read(controller.draft.capture()))}catch{setCurrentDraft('')}setStale(true)}
+    else host.notify({kind:'error',message})}finally{setBusy(false)}}
+  const copyProposal=async()=>{try{await navigator.clipboard.writeText(proposal.proposed);host.notify({kind:'info',message:'Proposal copied. Your draft is unchanged.'})}catch{host.notify({kind:'error',message:'Copying is unavailable in this host.'})}}
+  const tab=(id,label)=>jsx('button',{type:'button',role:'tab','aria-selected':view===id,className:`rounded-md px-2 py-1 text-xs ${view===id?'bg-(--ui-control-active-background) text-foreground':'text-(--ui-text-secondary)'}`,onClick:()=>setView(id),children:label},id)
+  return jsx('section',{className:'mx-2 mb-1 rounded-md border border-(--ui-stroke-secondary) bg-(--ui-background) p-2 text-xs',role:'region','aria-label':'Enhancement review',children:jsxs(Fragment,{children:[
+    jsxs('div',{className:'flex flex-wrap items-center justify-between gap-2',children:[jsx('strong',{children:'Review enhancement'}),jsxs('div',{role:'tablist','aria-label':'Review views',className:'flex gap-1',children:[tab('proposed','Proposed'),tab('changes','Changes'),tab('original','Original')]})]}),
+    stale?jsxs('div',{role:'alert',className:'mt-2 rounded-md border border-(--ui-stroke-secondary) bg-(--ui-control-active-background) p-2',children:[jsx('p',{children:'Your draft changed. Compare before applying.'}),jsxs('div',{className:'mt-1 flex flex-wrap gap-2',children:[jsx(Button,{type:'button',size:'sm',variant:'ghost',onClick:()=>setView('changes'),children:'Compare'}),jsx(Button,{type:'button',size:'sm',variant:'ghost',onClick:copyProposal,children:'Copy proposal'}),jsx(Button,{type:'button',size:'sm',variant:'ghost',onClick:()=>discardReviewProposal(controller,proposal),children:'Cancel'})]})]}):null,
+    view==='proposed'?jsxs('div',{className:'mt-2',children:[jsx('pre',{className:'max-h-40 overflow-auto whitespace-pre-wrap rounded border border-(--ui-stroke-secondary) p-1 text-(--ui-text-secondary)','aria-label':'Proposed draft',children:whole?proposal.proposed:segments.map((segment,index)=>segment.mark?jsx('mark',{className:'rounded-sm bg-(--ui-control-active-background) text-foreground',children:segment.text},index):jsx('span',{children:segment.text},index))}),!whole&&selected.size<groups.length?jsx('p',{className:'mt-1 text-(--ui-text-tertiary)',children:'Preview recomputes the actual combination of your selected changes.'}):null]}):null,
+    view==='changes'?jsxs('div',{className:'mt-2',children:[
+      jsx('p',{className:'text-(--ui-text-tertiary)',children:whole?'Full draft replacement':'Choose changes to apply. Descriptions are inferred from the diff, not semantic analysis.'}),
+      stale?jsxs('div',{className:'mt-1 grid gap-2 md:grid-cols-2',children:[jsxs('label',{children:['Original draft',jsx('pre',{className:'mt-1 max-h-24 overflow-auto whitespace-pre-wrap rounded border border-(--ui-stroke-secondary) p-1 text-(--ui-text-secondary)',children:proposal.original})]}),jsxs('label',{children:['Your current draft',jsx('pre',{className:'mt-1 max-h-24 overflow-auto whitespace-pre-wrap rounded border border-(--ui-stroke-secondary) p-1 text-(--ui-text-secondary)',children:currentDraft})]})]}):null,
+      !whole?jsx('div',{className:'mt-1 max-h-40 space-y-1 overflow-auto',children:ordered.map(group=>jsxs('label',{className:'flex items-start gap-2 rounded border border-(--ui-stroke-secondary) p-1.5',children:[jsx('input',{type:'checkbox',checked:selected.has(group.id),onChange:()=>toggle(group.id),'aria-label':`Select ${group.id}`}),jsxs('span',{className:'min-w-0',children:[jsxs('span',{className:'flex flex-wrap items-center gap-1',children:[group.attention?jsx('span',{'aria-hidden':true,children:'⚠'}):null,jsx('strong',{children:group.label||'Changed passage'}),group.attention?jsx('span',{className:'text-(--ui-text-tertiary)',children:'· needs attention'}):null]}),jsx('span',{className:'block truncate text-(--ui-text-tertiary)',children:`${group.id} · ${proposal.original.slice(group.start,group.end).slice(0,80)||'∅'} → ${(group.replacement||'∅').slice(0,80)}`})]})]},group.id))}):null,
+    ]}):null,
+    view==='original'?jsx('pre',{className:'mt-2 max-h-40 overflow-auto whitespace-pre-wrap rounded border border-(--ui-stroke-secondary) p-1 text-(--ui-text-secondary)','aria-label':'Original draft',children:proposal.original}):null,
+    jsxs('div',{className:'mt-2 flex flex-wrap gap-2',children:[jsx(Button,{type:'button',size:'sm',disabled:busy||stale||(!whole&&selected.size===0),onClick:()=>apply([...selected]),children:'Apply selected'}),jsx(Button,{type:'button',size:'sm',variant:'ghost',disabled:busy||stale,onClick:()=>apply(null),children:'Apply all'}),jsx(Button,{type:'button',size:'sm',variant:'ghost',disabled:busy,onClick:()=>discardReviewProposal(controller,proposal),children:'Keep original'})]})]})})
+}
+function EnhancementHistoryPanel({controller}) {
+  const [open,setOpen]=useState(()=>controller.historyOpen===true),[snapshot,setSnapshot]=useState(null),[preview,setPreview]=useState(null),[busy,setBusy]=useState(false)
+  useEffect(()=>controller.subscribeHistory?.(value=>setOpen(value===true))||(()=>{}),[controller])
+  useEffect(()=>{if(!open)return;let live=true
+    const refresh=async()=>{try{const owner=await controller.ownerRouter.capture({allowDraft:true,draftId:'composer'}),next=await controller.enhancer.historyFor(owner);if(live)setSnapshot(next)}catch{if(live)setSnapshot({entries:[],stale:true})}}
+    void refresh();const dispose=controller.enhancer.subscribe(refresh);return()=>{live=false;dispose()}
+  },[open,controller])
+  if(!open)return null
+  const restore=async index=>{if(busy)return;setBusy(true);try{const owner=await controller.ownerRouter.capture({allowDraft:true,draftId:'composer'});if(!await controller.enhancer.restoreTo(owner,index))host.notify({kind:'info',message:'Your draft changed. History restore was not applied.'})}catch(error){host.notify({kind:'error',message:publicError(error)})}finally{setBusy(false)}}
+  return jsx('section',{role:'region','aria-label':'Enhancement history',className:'mx-2 mb-1 rounded-md border border-(--ui-stroke-secondary) bg-(--ui-background) p-2 text-xs',children:jsxs(Fragment,{children:[
+    jsxs('div',{className:'flex items-center justify-between gap-2',children:[jsx('strong',{children:'Enhancement history'}),jsx(Button,{type:'button',size:'sm',variant:'ghost',onClick:()=>controller.setHistoryOpen(false),children:'Close'})]}),
+    jsx('p',{className:'py-1 text-(--ui-text-tertiary)',children:'In-memory history for this draft on this device. Named saved versions arrive with Saved work; typing undo stays with the editor.'}),
+    snapshot?.stale&&snapshot.entries.length?jsx('p',{role:'status',className:'text-(--ui-text-tertiary)',children:'Your draft changed outside enhancement. Restore is unavailable until it matches again.'}):null,
+    !snapshot?.entries.length?jsx('p',{className:'text-(--ui-text-tertiary)',children:'No enhancement history for this draft yet.'}):null,
+    jsx('ol',{className:'max-h-48 space-y-1 overflow-auto',children:(snapshot?.entries||[]).map(entry=>jsxs('li',{className:'rounded border border-(--ui-stroke-secondary) p-1.5',children:[
+      jsxs('div',{className:'flex items-center justify-between gap-2',children:[jsxs('span',{children:[`${entry.op} · ${new Date(entry.at).toLocaleTimeString()}`,entry.current?' · current':'']}),jsx(Button,{type:'button',size:'sm',variant:'ghost',disabled:busy||entry.current||snapshot.stale,onClick:()=>restore(entry.index),children:'Restore'})]}),
+      jsx('button',{type:'button',className:'block w-full truncate text-left text-(--ui-text-secondary)',onClick:()=>setPreview(preview===entry.index?null:entry.index),children:entry.preview||'(empty)'}),
+      preview===entry.index?jsx('pre',{className:'mt-1 max-h-24 overflow-auto whitespace-pre-wrap text-(--ui-text-secondary)',children:entry.text}):null,
+    ]},entry.index))}),
+  ]})})
 }
 function ComposerDraftShelf({controller,row=false}) {
   const save=async()=>{try{const owner=await controller.ownerRouter.capture({allowDraft:true,draftId:'composer'}),surface=controller.draft.capture(),text=await controller.draft.read(surface);controller.draftShelf.save(owner,surface,{name:'Untitled draft',text});if(row)host.notify({kind:'info',message:'Draft saved on this device.'})}catch(error){host.notify({kind:'error',message:publicError(error)})}}
@@ -86,19 +124,24 @@ function MoreLibraryView({controller,onBack,onDone}) {
   ]})
 }
 function ImproveMenu({controller,enhancing,setEnhancing,history,onOpenLibrary}) {
-  const [open,setOpen]=useState(false),triggerRef=useRef(null),library=controller.library,active=library.prompts.find(prompt=>prompt.id===library.activePromptId)
+  const [open,setOpen]=useState(false),[applyMode,setApplyMode]=useState(()=>controller.enhancementApplyMode||'review'),triggerRef=useRef(null),library=controller.library,active=library.prompts.find(prompt=>prompt.id===library.activePromptId)
+  useEffect(()=>controller.subscribeEnhancementApplyMode?.(setApplyMode)||(()=>{}),[controller])
   const close=()=>{setOpen(false);queueMicrotask(()=>triggerRef.current?.focus())}
   const run=async fn=>{if(enhancing)return;setEnhancing(true);try{await fn(controller);close()}catch(error){host.notify({kind:'error',message:publicError(error)})}finally{setEnhancing(false)}}
   const runBuiltin=async id=>{const prompt=controller.library.prompts.find(item=>item.id===id);if(!prompt){host.notify({kind:'error',message:'That built-in recipe is missing from your library.'});return}
     if(enhancing)return;setEnhancing(true);try{const {owner}=await controller.enhancer.capture();await controller.enhancer.enhance(owner,prompt,controller.library.enhanceWith);close()}catch(error){host.notify({kind:'error',message:publicError(error)})}finally{setEnhancing(false)}}
-  const label=enhancing?'Enhancing draft':'Enhance draft',busy=enhancing||history.busy
+  const label=enhancing?'Enhancing draft':'Enhance draft',busy=enhancing||history.busy,triggerDisabled=history.busy
   const row=(key,text,onClick,detail='')=>jsxs('button',{type:'button',role:'menuitem',className:MENU_ROW_CLASS,disabled:busy,onClick,children:[jsx('span',{className:'min-w-0 flex-1 truncate',children:text}),detail?jsx('span',{className:'text-[10px] text-(--ui-text-tertiary)',children:detail}):null]},key)
   return jsx(Popover,{open,onOpenChange:next=>next?setOpen(true):close(),children:jsxs(Fragment,{children:[
-    jsx(PopoverTrigger,{asChild:true,children:jsxs('button',{ref:triggerRef,type:'button',className:`${ACTION_CLASS} w-auto gap-1 px-1.5`,'aria-label':label,title:label,'aria-haspopup':'menu','aria-expanded':open,disabled:busy,onMouseDown:event=>event.preventDefault(),children:[enhancing?jsx(Codicon,{name:'loading',size:'0.95rem'}):jsx(ComposerIcon,{icon:'I02',size:16}),jsx('span',{className:'text-xs',children:enhancing?'Enhancing':'Improve'}),jsx(Codicon,{name:'chevron-down',size:'0.7rem'})]})}),
-    jsx(PopoverContent,{align:'end',variant:'menu',className:'w-72 max-w-[calc(100vw-1rem)] bg-(--ui-bg-elevated) p-1',children:jsxs('div',{role:'menu','aria-label':'Improve',children:[
-      jsxs('div',{className:'flex items-center justify-between gap-2 px-2 py-1.5 text-xs text-(--ui-text-secondary)',children:[jsxs('span',{className:'min-w-0 truncate',children:['Recipe: ',jsx('strong',{children:active?.name||'none'})]}),jsx(Button,{type:'button',size:'sm',variant:'ghost',onClick:()=>{close();onOpenLibrary()},children:'Change'})]}),
-      row('primary','Improve with recipe',()=>run(enhanceDraft),'Uses helper model'),
-      row('review','Review changes before applying',()=>run(proposeEnhancement),'Uses helper model'),
+    jsx(PopoverTrigger,{asChild:true,children:jsxs('button',{ref:triggerRef,type:'button',className:`${ACTION_CLASS} w-auto gap-1 px-1.5`,'aria-label':label,title:label,'aria-haspopup':'menu','aria-expanded':open,disabled:triggerDisabled,onMouseDown:event=>event.preventDefault(),children:[enhancing?jsx(Codicon,{name:'loading',size:'0.95rem'}):jsx(ComposerIcon,{icon:'I02',size:16}),jsx('span',{className:'text-xs',children:enhancing?'Enhancing':'Improve'}),jsx(Codicon,{name:'chevron-down',size:'0.7rem'})]})}),
+    jsx(PopoverContent,{align:'end',variant:'menu',className:'w-72 max-w-[calc(100vw-1rem)] bg-(--ui-bg-elevated) p-1',children:jsxs('div',{role:'menu','aria-label':'Improve',children:enhancing?[
+      jsx('p',{className:'px-2 py-1.5 text-xs text-(--ui-text-secondary)',role:'status',children:'Enhancing draft…'},'status'),
+      row('cancel','Cancel enhancement',()=>{controller.cancelEnhancement().catch(error=>host.notify({kind:'error',message:publicError(error)}));close()}),
+      jsx('p',{className:MENU_NOTE_CLASS,children:'Cancel stops applying the result. Your draft stays untouched.'},'cancel-note'),
+    ]:[
+      jsxs('div',{className:'flex items-center justify-between gap-2 px-2 py-1.5 text-xs text-(--ui-text-secondary)',children:[jsxs('span',{className:'min-w-0 truncate',children:['Recipe: ',jsx('strong',{children:active?.name||'none'})]}),jsx(Button,{type:'button',size:'sm',variant:'ghost',onClick:()=>{close();onOpenLibrary()},children:'Change'})]},'recipe'),
+      applyMode==='review'?row('primary','Improve with recipe',()=>run(proposeEnhancement),'Review first'):row('primary','Improve with recipe',()=>run(enhanceDraft),'Applies immediately'),
+      applyMode==='review'?row('immediate','Apply immediately this time',()=>run(enhanceDraft),'Uses helper model'):row('review','Review changes before applying',()=>run(proposeEnhancement),'Uses helper model'),
       jsx('div',{className:MENU_GROUP_CLASS,children:'Built-in recipes'}),
       ...DEFAULT_PROMPTS.map(([id,name])=>row(id,name,()=>runBuiltin(id))),
       jsx('div',{className:MENU_GROUP_CLASS,children:'Configure'}),
@@ -113,9 +156,10 @@ function MoreMenu({controller,history,moreKeys,open,onOpenChange,view,onViewChan
   const group=label=>jsx('div',{className:MENU_GROUP_CLASS,children:label},`g-${label}`)
   const iconRow=(key,icon,text,onClick,disabled=false,title=text)=>jsxs('button',{type:'button',role:'menuitem',className:MENU_ROW_CLASS,disabled,title,onClick,children:[jsx(ComposerIcon,{icon,size:16}),jsx('span',{children:text})]},key)
   const rows=[]
-  if(moreKeys.includes('undo')||moreKeys.includes('redo')){rows.push(group('Continue'))
-    if(moreKeys.includes('undo'))rows.push(iconRow('undo','I08','Undo enhancement',()=>{close();void moveEnhancement(controller,undoEnhancement)},!history.canUndo||history.busy,history.canUndo?'Undo enhancement':'Nothing to undo yet'))
-    if(moreKeys.includes('redo'))rows.push(iconRow('redo','I09','Redo enhancement',()=>{close();void moveEnhancement(controller,redoEnhancement)},!history.canRedo||history.busy,history.canRedo?'Redo enhancement':'Nothing to redo yet'))}
+  rows.push(group('Continue'))
+  if(moreKeys.includes('undo'))rows.push(iconRow('undo','I08','Undo enhancement',()=>{close();void moveEnhancement(controller,undoEnhancement)},!history.canUndo||history.busy,history.canUndo?'Undo enhancement':'Nothing to undo yet'))
+  if(moreKeys.includes('redo'))rows.push(iconRow('redo','I09','Redo enhancement',()=>{close();void moveEnhancement(controller,redoEnhancement)},!history.canRedo||history.busy,history.canRedo?'Redo enhancement':'Nothing to redo yet'))
+  rows.push(iconRow('history','I11','Enhancement history',()=>{close();controller.setHistoryOpen(true)}))
   if(moreKeys.includes('save-draft')){rows.push(group('Keep'));rows.push(jsx(ComposerDraftShelf,{controller,row:true},'save'))}
   if(moreKeys.includes('library')||moreKeys.includes('compose')){rows.push(group('Prepare'))
     if(moreKeys.includes('library'))rows.push(iconRow('library','I03','Prompt library',()=>onViewChange('library')))

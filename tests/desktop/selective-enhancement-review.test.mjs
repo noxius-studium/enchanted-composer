@@ -6,7 +6,7 @@ const source=await readFile(new URL('../../desktop/plugin.js',import.meta.url),'
 const between=(start,end)=>{const a=source.indexOf(start),b=source.indexOf(end);assert.ok(a>=0&&b>a,`missing ${start}`);return source.slice(a+start.length,b)}
 const bounded=(value,limit=8192)=>typeof value==='string'?value.trim().slice(0,limit):''
 const review=()=>new Function(`${between('/* ENHANCEMENT_REVIEW_START */','/* ENHANCEMENT_REVIEW_END */')}\nreturn {EnhancementReview}`)().EnhancementReview
-const enhancer=()=>new Function('host','bounded',`${between('/* PROMPT_ENHANCER_START */','/* PROMPT_ENHANCER_END */')}\nreturn {PromptEnhancer}`)({},bounded).PromptEnhancer
+const enhancer=()=>new Function('host','bounded','now',`${between('/* PROMPT_ENHANCER_START */','/* PROMPT_ENHANCER_END */')}\nreturn {PromptEnhancer}`)({},bounded,()=>Date.now()).PromptEnhancer
 const owner=Object.freeze({connectionId:'c',profile:'default',runtimeSessionId:'r',storedSessionId:'s'})
 
 function fixture({original='alpha one\nbeta two\ngamma three', proposed='alpha ONE\nbeta two\ngamma THREE'}={}) {

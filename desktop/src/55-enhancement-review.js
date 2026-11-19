@@ -20,10 +20,31 @@ class EnhancementReview {
     if(groups.length>this.maxGroups)return null
     return groups.map((group,index)=>({id:`change-${index+1}`,start:offsets[group.start],end:offsets[group.end],replacement:this._text(group.replacement)}))
   }
+  // Deterministic, local change descriptions (spec §9.1/§9.2). These are
+  // inferred heuristics, not semantic analysis; the UI labels them as such.
+  _label(before, after) {
+    const restriction = /\b(do not|don't|never|must not|must|avoid|without|only)\b/i
+    const identifier = /[\/\\][\w.-]+|\b\d+(?:\.\d+)?\b|\b[a-z][a-z0-9+.-]*:\/\/\S+|`[^`]+`|\b[A-Z]{2,}\b/g
+    const assumption = /\b(assume|assuming|assumption|probably|likely|presumably)\b/i
+    const format = /\b(json|table|markdown|csv|yaml|xml|deploy|execute|install|run)\b/i
+    if (restriction.test(before) && !restriction.test(after)) return { kind: 'restriction-removed', label: 'Removed a restriction', attention: true }
+    const beforeIds = (before.match(identifier) || []).join(' '), afterIds = (after.match(identifier) || []).join(' ')
+    if ((beforeIds || afterIds) && beforeIds !== afterIds) return { kind: 'identifier-changed', label: 'Changed a number, path, or identifier', attention: true }
+    if (!assumption.test(before) && assumption.test(after)) return { kind: 'assumption-added', label: 'Added an assumption', attention: true }
+    if (format.test(before) !== format.test(after)) return { kind: 'format-changed', label: 'Changed format or execution wording', attention: true }
+    if (after.length > before.length * 1.5 && after.length - before.length > 24) return { kind: 'scope-added', label: 'Added scope', attention: true }
+    if (!after.trim()) return { kind: 'removed', label: 'Removed text', attention: false }
+    if (!before.trim()) return { kind: 'added', label: 'Added text', attention: false }
+    return { kind: 'reworded', label: 'Reworded passage', attention: false }
+  }
   create({owner,surface,original,prompt,route,proposed}) {
-    const before=this._exact(original,'original'),after=this._text(proposed),groups=before===after?[]:this._changes(before,after),routeCopy={kind:this._exact(route?.kind,'route.kind')}
+    const before=this._exact(original,'original'),after=this._text(proposed),raw=before===after?[]:this._changes(before,after),routeCopy={kind:this._exact(route?.kind,'route.kind')}
     if(routeCopy.kind==='model')Object.assign(routeCopy,this._copy(route,['provider','model','reasoningEffort'],'route'))
-    return this._freeze({owner:this._copy(owner,['connectionId','profile','runtimeSessionId','storedSessionId'],'owner'),surface:this._copy(surface,['surfaceId','editor'],'surface'),original:before,prompt:this._copy(prompt,['id','name','body'],'prompt'),route:routeCopy,proposed:after,mode:groups===null?'whole':'groups',groups:groups||[]})
+    // Groups stay in positional order for compose(); reviewOrder is display-only
+    // (attention-first, spec §9.2) so selective application is never reordered.
+    const groups=(raw||[]).map(group=>Object.assign({},group,this._label(before.slice(group.start,group.end),group.replacement)))
+    const reviewOrder=groups.slice().sort((a,b)=>(b.attention?1:0)-(a.attention?1:0)||a.start-b.start).map(group=>group.id)
+    return this._freeze({owner:this._copy(owner,['connectionId','profile','runtimeSessionId','storedSessionId'],'owner'),surface:this._copy(surface,['surfaceId','editor'],'surface'),original:before,prompt:this._copy(prompt,['id','name','body'],'prompt'),route:routeCopy,proposed:after,mode:raw===null?'whole':'groups',groups,reviewOrder})
   }
   compose(proposal,selectedGroupIds=null) {
     if(!proposal||proposal.mode==='whole'||!Array.isArray(selectedGroupIds))return proposal?.proposed||''

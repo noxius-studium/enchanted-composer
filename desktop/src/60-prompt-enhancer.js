@@ -1,7 +1,7 @@
 /* PROMPT_ENHANCER_START */
 class PromptEnhancer {
   constructor({draftAdapter,ownerRouter,api=host,review=null}) {
-    this.draft=draftAdapter;this.ownerRouter=ownerRouter;this.api=api;this.review=review;this.proposals=new WeakSet();this.applying=new WeakSet();this.histories=new Map();this.listeners=new Set();this.pending=new Set()
+    this.draft=draftAdapter;this.ownerRouter=ownerRouter;this.api=api;this.review=review;this.proposals=new WeakSet();this.applying=new WeakSet();this.histories=new Map();this.listeners=new Set();this.pending=new Set();this.cancelled=new Set()
   }
   key(owner,surfaceId) {
     // Saved chats survive editor remounts; unsent drafts stay surface-scoped.
@@ -9,6 +9,11 @@ class PromptEnhancer {
   }
   subscribe(fn) { this.listeners.add(fn);return()=>this.listeners.delete(fn) }
   _emit() { for(const fn of this.listeners)fn() }
+  // Cancellation discards the pending result before any write; the provider
+  // call itself may still complete. The source text is never touched.
+  cancelPending(owner) { const surface=this.draft.capture();this.cancelled.add(this.key(owner,surface.surfaceId));this._emit();return true }
+  _pushHistory(history,text,op) { history.values.push(text);history.ats.push(now());history.ops.push(op);if(history.values.length>31){history.values.shift();history.ats.shift();history.ops.shift()}history.index=history.values.length-1 }
+  _freshHistory(original) { return {values:[original],index:0,ats:[now()],ops:['Original']} }
   override(value) { if(!value||value.kind!=='model'||!bounded(value.provider,128)||!bounded(value.model,128))return null;return {provider:bounded(value.provider,128),model:bounded(value.model,128),reasoningEffort:bounded(value.reasoningEffort,16)} }
   async pinned(owner,original,instructions,override) {
     try{return await this.api.rest('/v1/enhance',{method:'POST',body:{owner,input:original,instructions,...override},timeoutMs:70000})}
@@ -28,8 +33,9 @@ class PromptEnhancer {
       if(!proposed.trim())throw new Error('Enhancement returned no text.')
       const current=this.draft.capture(),currentOwner=await this.ownerRouter.capture({allowDraft:true,draftId:current.surfaceId})
       if(current.surfaceId!==surface.surfaceId||await this.draft.read(surface)!==original||!this._sameOwner(currentOwner,owner))throw new Error('Composer changed while enhancing. Your draft was left untouched.')
+      if(this.cancelled.has(key))throw new Error('Enhancement cancelled. Your draft was left untouched.')
       const proposal=this.review.create({owner,surface:{surfaceId:surface.surfaceId},original,prompt,route:this._route(selection),proposed});this.proposals.add(proposal);return proposal
-    } finally { this.pending.delete(key);this._emit() }
+    } finally { this.pending.delete(key);this.cancelled.delete(key);this._emit() }
   }
   async status(owner) {
     try { const surface=this.draft.capture(),key=this.key(owner,surface.surfaceId),history=this.histories.get(key),text=await this.draft.read(surface)
@@ -50,16 +56,17 @@ class PromptEnhancer {
       if(!enhanced)throw new Error('Enhancement returned no text.')
       const current=this.draft.capture(),currentOwner=await this.ownerRouter.capture({allowDraft:true,draftId:current.surfaceId})
       if(current.editor!==surface.editor||await this.draft.read(surface)!==original||this.key(currentOwner,current.surfaceId)!==key)throw new Error('Composer changed while enhancing. Your draft was left untouched.')
+      if(this.cancelled.has(key))throw new Error('Enhancement cancelled. Your draft was left untouched.')
       let history=this.histories.get(key)
-      if(!history||history.values[history.index]!==original)history={values:[original],index:0}
+      if(!history||history.values[history.index]!==original)history=this._freshHistory(original)
       // Commit history only after the actual editor write succeeds.
       await this.draft.replace(enhanced,surface)
       const applied=await this.draft.read(surface)
       if(applied===original&&enhanced!==original)throw new Error('The editor did not accept the enhancement.')
-      if(applied!==original){history.values=history.values.slice(0,history.index+1);history.values.push(applied);if(history.values.length>31)history.values.shift();history.index=history.values.length-1;this.histories.delete(key);this.histories.set(key,history)}
+      if(applied!==original){history.values=history.values.slice(0,history.index+1);history.ats=history.ats.slice(0,history.index+1);history.ops=history.ops.slice(0,history.index+1);this._pushHistory(history,applied,'Enhancement');this.histories.delete(key);this.histories.set(key,history)}
       while(this.histories.size>50)this.histories.delete(this.histories.keys().next().value)
       return applied
-    } finally { this.pending.delete(key);this._emit() }
+    } finally { this.pending.delete(key);this.cancelled.delete(key);this._emit() }
   }
   insert(text) { return this.draft.insert(text) }
   discardProposal(proposal) { if(!proposal||!this.proposals.has(proposal))return false;this.proposals.delete(proposal);this._emit();return true }
@@ -75,11 +82,11 @@ class PromptEnhancer {
       const accepted=this.review.compose(proposal,selectedGroupIds)
       if(typeof accepted!=='string'||accepted.length>12000)throw new Error('Enhancement proposal is invalid.')
       let history=this.histories.get(key)
-      if(!history||history.values[history.index]!==proposal.original)history={values:[proposal.original],index:0}
+      if(!history||history.values[history.index]!==proposal.original)history=this._freshHistory(proposal.original)
       await this.draft.replace(accepted,surface)
       const applied=await this.draft.read(surface)
       if(applied===proposal.original&&accepted!==proposal.original)throw new Error('The editor did not accept the enhancement.')
-      if(applied!==proposal.original){history.values=history.values.slice(0,history.index+1);history.values.push(applied);if(history.values.length>31)history.values.shift();history.index=history.values.length-1;this.histories.delete(key);this.histories.set(key,history)}
+      if(applied!==proposal.original){history.values=history.values.slice(0,history.index+1);history.ats=history.ats.slice(0,history.index+1);history.ops=history.ops.slice(0,history.index+1);this._pushHistory(history,applied,'Review apply');this.histories.delete(key);this.histories.set(key,history)}
       while(this.histories.size>50)this.histories.delete(this.histories.keys().next().value)
       this.proposals.delete(proposal);this._emit();return applied
     } finally { this.applying.delete(proposal) }
@@ -95,6 +102,24 @@ class PromptEnhancer {
   }
   undoFor(owner) { return this._move(owner,-1) }
   redoFor(owner) { return this._move(owner,1) }
-  dispose() { this.histories.clear();this.proposals=new WeakSet();this.applying=new WeakSet();this.listeners.clear() }
+  // Read-only timeline snapshot for the history view (spec §9.5). In-memory,
+  // device-local; named saved versions are a separate Saved-work concern.
+  async historyFor(owner) {
+    try {
+      const surface=this.draft.capture(),key=this.key(owner,surface.surfaceId),history=this.histories.get(key),text=await this.draft.read(surface)
+      if(!history)return {entries:[],stale:true,canUndo:false,canRedo:false}
+      const stale=history.values[history.index]!==text
+      return {entries:history.values.map((value,index)=>({index,text:value,preview:value.slice(0,160),at:history.ats[index],op:history.ops[index],current:index===history.index})),stale,canUndo:!stale&&history.index>0,canRedo:!stale&&history.index<history.values.length-1}
+    } catch { return {entries:[],stale:true,canUndo:false,canRedo:false} }
+  }
+  async restoreTo(owner,index) {
+    const surface=this.draft.capture(),key=this.key(owner,surface.surfaceId),history=this.histories.get(key)
+    if(!history||this.pending.has(key)||!Number.isInteger(index)||index<0||index>=history.values.length||index===history.index)return false
+    if(await this.draft.read(surface)!==history.values[history.index])return false
+    await this.draft.replace(history.values[index],surface)
+    if(await this.draft.read(surface)!==history.values[index])throw new Error('The editor did not accept the history change.')
+    history.index=index;this._emit();return true
+  }
+  dispose() { this.histories.clear();this.proposals=new WeakSet();this.applying=new WeakSet();this.listeners.clear();this.cancelled.clear() }
 }
 /* PROMPT_ENHANCER_END */
